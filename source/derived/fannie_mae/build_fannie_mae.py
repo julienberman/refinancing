@@ -14,7 +14,7 @@ def main():
         SCHEMAS = json.load(f)
     
     INDIR = Path('datastore/raw/fannie_mae/data')
-    OUTDIR = Path('output/derived/fannie_mae')
+    OUTDIR = Path('datastore/output/derived/fannie_mae')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
     
@@ -23,7 +23,7 @@ def main():
     for quarter in QUARTERS:
         print(f"Processing {quarter}...")
         
-        df = load_file(in_file = INDIR / quarter / '.csv', schema = SCHEMAS['fannie_mae'])
+        df = load_file(in_file = INDIR / f'{quarter}.csv', schema = SCHEMAS['fannie_mae'])
         df_base = prepare_base_data(df)
         acquisition_file = create_acquisition_data(df_base)
         performance_file = create_performance_data(df_base)
@@ -37,12 +37,12 @@ def main():
         
         dfs.append(output)
     
-    df_combined = pd.concat(dfs)
-    
+    df_combined = pd.concat(dfs).clean_names()
+
     save_data(
         df_combined,
-        keys = ...,
-        out_file = OUTDIR / 'fannie_mae.parquet',
+        keys = ['loan_id'],
+        out_file = OUTDIR / 'fannie_mae.csv',
         log_file = OUTDIR / 'fannie_mae.log',
         sortbykey = False
     )
@@ -265,7 +265,6 @@ def create_base_table_1(acquisition_file, quarter):
 def create_base_table_2(base_table_1, performance_file):
     """
     Create second base table with latest-available or aggregated performance data.
-    
     """
     # Last activity date
     last_act_dte_table = (
@@ -312,7 +311,7 @@ def create_base_table_2(base_table_1, performance_file):
     # Combine max tables
     max_table = (
         last_act_dte_table
-        .merge(performance_file, on=['LOAN_ID', 'LAST_ACTIVITY_DATE'], how='left')
+        .merge(performance_file, left_on=['LOAN_ID', 'LAST_ACTIVITY_DATE'], right_on=['LOAN_ID', 'period'], how='left')
         .merge(last_upb_table, on='LOAN_ID', how='left')
         .merge(last_rt_table, on='LOAN_ID', how='left')
         .merge(zb_code_table, on='LOAN_ID', how='left')
@@ -325,8 +324,7 @@ def create_base_table_2(base_table_1, performance_file):
         .groupby('LOAN_ID')
         .agg(servicer_period=('period', 'max'))
         .reset_index()
-        .merge(performance_file, left_on=['LOAN_ID', 'servicer_period'], 
-               right_on=['LOAN_ID', 'period'], how='left')
+        .merge(performance_file, left_on=['LOAN_ID', 'servicer_period'], right_on=['LOAN_ID', 'period'], how='left')
         .assign(SERVICER=lambda x: x['servicer'])
         .select(columns=['LOAN_ID', 'SERVICER'])
     )
@@ -515,9 +513,8 @@ def create_base_table_4(base_table_3, performance_file):
     trm_chng_table = (
         slim_performance_file
         .sort_values(['LOAN_ID', 'period'])
-        .groupby('LOAN_ID')
         .assign(
-            prev_rem_mths=lambda x: x['rem_mths'].shift(1),
+            prev_rem_mths=lambda x: x.groupby('LOAN_ID')['rem_mths'].shift(1),
             trm_chng=lambda x: x['rem_mths'] - x['prev_rem_mths'],
             did_trm_chng=lambda x: np.where(x['trm_chng'] >= 0, 1, 0)
         )
