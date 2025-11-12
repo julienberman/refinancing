@@ -1,0 +1,5 @@
+install.packages("dplyr")
+install.packages("data.table")
+install.packages("jsonlite")
+install.packages("lubridate")
+install.packages("purrr")
