@@ -4,10 +4,11 @@ import pandas as pd
 import hashlib
 import re
 import pathlib
+import pyarrow
 
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = True):
+def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = True, verbose = True):
     extension = check_extension(out_file)
     check_columns_not_list(df)
     check_keys(df, keys)
@@ -17,7 +18,7 @@ def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = Tru
     df = df[cols_reordered]
     df_hash = hashlib.md5(pd.util.hash_pandas_object(df).values).hexdigest() 
     summary_stats = get_summary_stats(df)
-    save_df(df, keys, out_file, sortbykey, extension)
+    save_df(df, keys, out_file, sortbykey, extension, verbose)
     save_log(df_hash, keys, summary_stats, out_file, append, log_file)
     
 
@@ -28,8 +29,8 @@ def check_extension(out_file):
         extension = [out_file.suffix]
     else:
         raise ValueError('Output file format must be string or Path object')
-    if not extension[0] in ['.csv', '.dta', '.xlsx']:
-        raise ValueError("File extension should be one of .csv, .dta, or .xlsx.")
+    if not extension[0] in ['.csv', '.dta', '.xlsx', '.parquet']:
+        raise ValueError("File extension should be one of .csv, .dta, .xlsx, or .parquet.")
     return extension[0]
 
 def check_columns_not_list(df):
@@ -38,8 +39,6 @@ def check_columns_not_list(df):
         type_list_columns = df.columns[type_list]
         raise TypeError("No column can be of type list - check the following columns: " + ", ".join(type_list_columns))
        
-      
-
 def check_keys(df, keys):
     if not isinstance(keys, list):
         raise TypeError("Keys must be specified as a list.")
@@ -64,7 +63,6 @@ def check_keys(df, keys):
     if not all(df.groupby(keys).size() == 1):
         raise ValueError("Keys do not uniquely identify the observations.")
         
-
 def get_summary_stats(df):
     var_types = df.dtypes
 
@@ -83,8 +81,7 @@ def get_summary_stats(df):
 
     return summary_stats
 
-
-def save_df(df, keys, out_file, sortbykey, extension):
+def save_df(df, keys, out_file, sortbykey, extension, verbose):
     if sortbykey:
         df.sort_values(keys, inplace = True)
     
@@ -94,10 +91,12 @@ def save_df(df, keys, out_file, sortbykey, extension):
         df.to_stata(out_file, write_index = False)
     if extension == '.xlsx':
         df.to_excel(out_file, index = False)
+    if extension == '.parquet':
+        df.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
 
-    print(f"File '{out_file}' saved successfully.")
+    if verbose:
+        print(f"File '{out_file}' saved successfully.")
     
-
 def save_log(df_hash, keys, summary_stats, out_file, append, log_file):
     if log_file: 
         if append:
@@ -125,3 +124,4 @@ def save_log(df_hash, keys, summary_stats, out_file, append, log_file):
         f.close()    
     else:
         pass
+

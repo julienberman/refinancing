@@ -384,10 +384,8 @@ def create_base_table_4(base_table_3, performance_file):
     slim_performance_file = (
         performance_file
         .select(columns=keep_cols)
-        .assign(
-            dlq_status=lambda x: np.where(x['dlq_status'] == 'XX', '999', x['dlq_status']),
-            dlq_status=lambda x: pd.to_numeric(x['dlq_status'], errors='coerce')
-        )
+        .assign(dlq_status=lambda x: np.where(x['dlq_status'] == 'XX', '999', x['dlq_status']))
+        .assign(dlq_status=lambda x: pd.to_numeric(x['dlq_status'], errors='coerce'))
     )
     
     # First 30-day delinquency
@@ -745,34 +743,31 @@ def create_base_table_6(base_table_5, base_table_1, performance_file):
     # Merge with base table 5
     base_table_6 = (base_table_5
         .merge(modir_table, on='LOAN_ID', how='left')
-        .assign(
-            COMPLT_FLG=lambda x: x['COMPLT_FLG'].astype(str),
-            COMPLT_FLG=lambda x: np.where(x['COMPLT_FLG'] == 'nan', '', x['COMPLT_FLG']),
-            non_int_upb=lambda x: np.where((x['COMPLT_FLG'] == '1') & x['non_int_upb'].isna(), 
-                                            0, x['non_int_upb'])
-        )
+        .assign(COMPLT_FLG=lambda x: x['COMPLT_FLG'].astype(str))
+        .assign(COMPLT_FLG=lambda x: np.where(x['COMPLT_FLG'] == 'nan', '', x['COMPLT_FLG']))
+        .assign(non_int_upb=lambda x: np.where((x['COMPLT_FLG'] == '1') & x['non_int_upb'].isna(), 0, x['non_int_upb']))
     )
     
     # Calculate adjusted MODIR_COST and MODFB_COST
-    base_table_6 = base_table_6.assign(
-        MODIR_COST=lambda x: np.where(
-            x['COMPLT_FLG'] == '1',
+    base_table_6 = (
+        base_table_6
+        .assign(MODIR_COST=lambda x: np.where(x['COMPLT_FLG'] == '1',
             (x['MODIR_COST'] + 
              ((x['LAST_DTE'].str[:4].astype(float) * 12 + x['LAST_DTE'].str[5:7].astype(float)) -
               (x['zb_date'].str[:4].astype(float) * 12 + x['zb_date'].str[5:7].astype(float))) *
              ((x['orig_rt'] - x['LAST_RT']) / 1200) * x['LAST_UPB']).round(2),
             x['MODIR_COST']
-        ),
-        MODFB_COST=lambda x: np.where(
+        ))
+        .assign(MODFB_COST=lambda x: np.where(
             x['COMPLT_FLG'] == '1',
             (x['MODFB_COST'] +
              ((x['LAST_DTE'].str[:4].astype(float) * 12 + x['LAST_DTE'].str[5:7].astype(float)) -
               (x['zb_date'].str[:4].astype(float) * 12 + x['zb_date'].str[5:7].astype(float))) *
              (x['LAST_RT'] / 1200) * x['non_int_upb']).round(2),
             x['MODFB_COST']
-        ),
-        COMPLT_FLG=lambda x: pd.to_numeric(x['COMPLT_FLG'], errors='coerce'),
-        orig_rt=lambda x: x['orig_rt'].round(3)
+        ))
+        .assign(COMPLT_FLG=lambda x: pd.to_numeric(x['COMPLT_FLG'], errors='coerce'))
+        .assign(orig_rt=lambda x: x['orig_rt'].round(3))
     )
     
     return base_table_6
