@@ -1,4 +1,4 @@
-name: inflation-expectations
+name: refinancing
 channels:
   - conda-forge
 dependencies:
