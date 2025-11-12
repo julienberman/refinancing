@@ -5,7 +5,7 @@ library(lubridate)
 library(purrr)
 
 
-Main <- function() {
+main <- function() {
     INDIR <- "datastore/raw/fannie_mae/data"
     OUTDIR <- "datastore/output/derived/fannie_mae"
 
@@ -626,9 +626,10 @@ create_final_output <- function(base_table_6) {
         MODFG_COST, MODTRM_CHNG, MODUPB_CHNG, z_num_periods_120, F120_UPB,
         CSCORE_MN, ORIG_VAL, LAST_DTE, LAST_STAT, COMPLT_FLG,
         INT_COST, PFG_COST, NET_LOSS, NET_SEV, MODTOT_COST
-    )
+    ) %>%
+        rename_with(tolower)
 
     return(baseTable7)
 }
 
-Main()
+main()
