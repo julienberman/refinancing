@@ -1,3 +1,4 @@
+options(repos = c(CRAN = "https://cloud.r-project.org"))
 install.packages("dplyr", dependencies = TRUE)
 install.packages("data.table", dependencies = TRUE)
 install.packages("jsonlite", dependencies = TRUE)
