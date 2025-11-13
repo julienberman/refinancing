@@ -1,5 +1,5 @@
 options(repos = c(CRAN = "https://cloud.r-project.org"))
-install.packages("dplyr")
+install.packages("tidyverse")
 install.packages("data.table")
 install.packages("jsonlite")
 install.packages("lubridate")
