@@ -22,7 +22,7 @@ def main():
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
     
-    mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv')
+    mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv', parse_dates=['date'])
     
     for quarter in QUARTERS:
         print(f"Processing {quarter}...")
@@ -31,13 +31,12 @@ def main():
             INDIR / f'{quarter}.csv', sep='|', 
             names=SCHEMAS['fannie_mae'].keys(), 
             dtype=SCHEMAS['fannie_mae'], 
-            low_memory=False,
-            nrows=10000
+            low_memory=False
         )
         
         df_clean = clean_data(df, quarter=quarter)
         df_with_mortgage_rates = add_mortgage_rate(df_clean, mortgage30us)
-        
+        print(df_with_mortgage_rates.dtypes)
         save_data(
             df_with_mortgage_rates,
             keys=['loan_id', 'date', 'date_acq'],
@@ -85,11 +84,11 @@ def clean_data(df, keep_vars=None, quarter=None):
         .clean_names()
         .rename(columns=rename_table)
         .assign(
-            date = lambda x: clean_date(x['date'], pattern='mmyyyy', aggregation='month'),
-            date_orig = lambda x: clean_date(x['date_orig'], pattern='mmyyyy', aggregation='month'),
-            date_first_pay = lambda x: clean_date(x['date_first_pay'], pattern='mmyyyy', aggregation='month'),
-            date_maturity = lambda x: clean_date(x['date_maturity'], pattern='mmyyyy', aggregation='month'),
-            date_zero_balance = lambda x: clean_date(x['date_exit'], pattern='mmyyyy', aggregation='month'),
+            date = lambda x: clean_date(x['date'], pattern='mmyyyy'),
+            date_orig = lambda x: clean_date(x['date_orig'], pattern='mmyyyy'),
+            date_first_pay = lambda x: clean_date(x['date_first_pay'], pattern='mmyyyy'),
+            date_maturity = lambda x: clean_date(x['date_maturity'], pattern='mmyyyy'),
+            date_zero_balance = lambda x: clean_date(x['date_exit'], pattern='mmyyyy'),
             date_acq = lambda x: create_acquisition_date(quarter)
         )
     )
@@ -104,8 +103,7 @@ def create_acquisition_date(quarter):
         'Q3': '09',
         'Q4': '12'
     }
-    acquisition_date = clean_date(f'{month_map[acquisition_quarter]}{acquisition_year}', pattern='mmyyyy', aggregation='month')
-    print(acquisition_date)
+    acquisition_date = clean_date(f'{month_map[acquisition_quarter]}{acquisition_year}', pattern='mmyyyy')
     return acquisition_date
     
 def clean_exit_code(df):
