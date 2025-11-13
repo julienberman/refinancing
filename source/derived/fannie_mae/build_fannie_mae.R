@@ -3,11 +3,11 @@ library(data.table)
 library(jsonlite)
 library(lubridate)
 library(purrr)
-
+library(arrow)
 
 main <- function() {
     INDIR <- "datastore/raw/fannie_mae/data"
-    OUTDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "datastore/output/derived/fannie_mae/sflp_clean"
 
     config <- fromJSON("source/lib/config.json")
     start_date <- config$SAMPLE_START
@@ -41,7 +41,8 @@ main <- function() {
 
         final_output %>%
             mutate_if(is.double, function(x) if_else(is.na(x), NA_character_, format(x, scientific = FALSE, drop0trailing = TRUE, trim = TRUE))) %>%
-            fwrite(file.path(OUTDIR, paste0(quarter, "_stat.csv")), sep = ",", na = "NULL", logical01 = TRUE, quote = TRUE, scipen = 100, col.names = TRUE, row.names = FALSE)
+            write_parquet(file.path(OUTDIR, paste0(quarter, ".parquet")))
+        # fwrite(file.path(OUTDIR, paste0(quarter, "_stat.csv")), sep = ",", na = "NULL", logical01 = TRUE, quote = TRUE, scipen = 100, col.names = TRUE, row.names = FALSE)
     }
 }
 
