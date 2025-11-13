@@ -17,12 +17,13 @@ def main():
         SCHEMAS = json.load(f)
     
     INDIR = Path('datastore/raw/fannie_mae/data')
+    INDIR_MORTGAGE_RATES = Path('output/derived/mortgage_rates')
     OUTDIR = Path('datastore/output/derived/fannie_mae/sflp_clean')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
     
+    mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv')
     
-    dfs = []
     for quarter in QUARTERS:
         print(f"Processing {quarter}...")
         
@@ -35,11 +36,14 @@ def main():
         )
         
         df_clean = clean_data(df, quarter=quarter)
+        df_with_mortgage_rates = add_mortgage_rate(df_clean, mortgage30us)
         
         save_data(
-            df_clean,
+            df_with_mortgage_rates,
             keys=['loan_id', 'date', 'date_acq'],
             out_file=OUTDIR / f'{quarter}.parquet',
+            log_file=OUTDIR / f'{quarter}.log',
+            sortbykey=True
         )
         
 
@@ -122,6 +126,15 @@ def clean_exit_code(df):
     mask = (df['exit_code'] == 'prepaid') & (df['date_exit'] == df['date_maturity'])
     df.loc[mask, 'exit_code'] = 'matured'
     return df
+
+def add_mortgage_rate(df, mortgage30us):
+    df_with_mortgage_rates = (
+        df
+        .merge(mortgage30us, on='date', how='left')
+        .rename(columns={'mortgage_rate': 'rate_mortgage30us'})
+        .assign(rate_gap = lambda x: x['rate_curr'] - x['rate_mortgage30us'])
+    )
+    return df_with_mortgage_rates
 
 if __name__ == '__main__':
     main()
