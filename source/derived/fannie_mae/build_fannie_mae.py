@@ -36,7 +36,7 @@ def main():
         
         df_clean = clean_data(df, quarter=quarter)
         df_with_mortgage_rates = add_mortgage_rate(df_clean, mortgage30us)
-        print(df_with_mortgage_rates.dtypes)
+
         save_data(
             df_with_mortgage_rates,
             keys=['loan_id', 'date', 'date_acq'],
@@ -133,6 +133,7 @@ def add_mortgage_rate(df, mortgage30us):
         .assign(rate_gap = lambda x: x['rate_curr'] - x['rate_mortgage30us'])
     )
     return df_with_mortgage_rates
+
 
 if __name__ == '__main__':
     main()
