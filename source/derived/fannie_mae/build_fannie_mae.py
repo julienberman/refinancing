@@ -202,7 +202,6 @@ def finalize_data(df):
         "first_home_buyer", "mortgage_type", "purpose", "dlq_status", "state", "state_abbr", "fips_state", "msa", "zip"
     ]
     df = df.select(columns=columns)
-    print(df.columns)
     return df
 
 if __name__ == '__main__':
