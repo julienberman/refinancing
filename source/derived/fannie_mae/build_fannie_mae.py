@@ -17,7 +17,7 @@ def main():
         SCHEMAS = json.load(f)
     
     INDIR = Path('datastore/raw/fannie_mae/data')
-    INDIR_CW = Path('datastore/raw/crosswalks')
+    INDIR_CW = Path('datastore/raw/crosswalks/data')
     INDIR_MORTGAGE_RATES = Path('output/derived/mortgage_rates')
     OUTDIR = Path('datastore/output/derived/fannie_mae/sflp_clean')
     LOGDIR = Path('output/derived/fannie_mae/sflp_clean')
@@ -25,7 +25,7 @@ def main():
     QUARTERS = get_quarters(START_DATE, END_DATE)
     
     cw_state_county = pd.read_csv(INDIR_CW / 'cw_state_county.csv')
-    cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date'])
+    cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
     mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv', parse_dates=['date'])
     
     for quarter in QUARTERS:
@@ -35,15 +35,20 @@ def main():
             INDIR / f'{quarter}.csv', sep='|', 
             names=SCHEMAS['fannie_mae'].keys(), 
             dtype=SCHEMAS['fannie_mae'], 
-            low_memory=False
+            low_memory=False,
+            nrows = 100000
         )
         
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
-        df_with_mortgage_rates = add_mortgage_rate(df_clean, mortgage30us)
-
+        df_with_fips = add_fips(df_clean, cw_state_county)
+        df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
+        df_with_indicators = add_event_indicators(df_with_mortgage_rates)
+        df_finalized = finalize_data(df_with_indicators)
+        print(df_finalized.query('loan_id == "000137587368"'))
+        
         save_data(
-            df_with_mortgage_rates,
-            keys=['loan_id', 'date', 'date_acq'],
+            df_finalized,
+            keys=['loan_id', 'period'],
             out_file=OUTDIR / f'{quarter}.parquet',
             log_file=LOGDIR / f'{quarter}.log',
             sortbykey=True
@@ -68,6 +73,7 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
         "orig_term": "term",
         "orig_date": "date_orig",
         "first_pay": "date_first_pay",
+        "loan_age": "time_from_orig",
         "adj_rem_months": "time_to_maturity",
         "matr_dt": "date_maturity",
         "oltv": "ltv",
@@ -97,18 +103,19 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
             date_acq = lambda x: create_acquisition_date(quarter),
             date = lambda x: clean_date(x['date'], pattern='mmyyyy')
         )
-        .merge(cw_period_date, left_on='date_orig', right_on='date', how='left').rename(columns={'period': 'period_orig'})
-        .merge(cw_period_date, left_on='date_first_pay', right_on='date', how='left').rename(columns={'period': 'period_first_pay'})
-        .merge(cw_period_date, left_on='date_maturity', right_on='date', how='left').rename(columns={'period': 'period_maturity'})
-        .merge(cw_period_date, left_on='date_exit', right_on='date', how='left').rename(columns={'period': 'period_exit'})
-        .merge(cw_period_date, left_on='date_acq', right_on='date', how='left').rename(columns={'period': 'period_acq'})
+        .merge(cw_period_date, left_on='date_orig', right_index=True, how='left').rename(columns={'period': 'period_orig'})
+        .merge(cw_period_date, left_on='date_first_pay', right_index=True, how='left').rename(columns={'period': 'period_first_pay'})
+        .merge(cw_period_date, left_on='date_maturity', right_index=True, how='left').rename(columns={'period': 'period_maturity'})
+        .merge(cw_period_date, left_on='date_exit', right_index=True, how='left').rename(columns={'period': 'period_exit'})
+        .merge(cw_period_date, left_on='date_acq', right_index=True, how='left').rename(columns={'period': 'period_acq'})
+        .merge(cw_period_date, left_on='date', right_index=True, how='left')
         .drop(columns=['date_orig', 'date_first_pay', 'date_maturity', 'date_exit', 'date_acq', 'date'])
-        .merge(cw_period_date, left_on='date', right_on='date', how='left')
         .assign(
             first_home_buyer = lambda x: x['first_home_buyer'].map({'Y': 1, 'N': 0}),
             mortgage_type = lambda x: x['mortgage_type'].map({'FRM': 'fixed', 'ARM': 'adjustable'})
         )
     )
+    
     df_with_exit_codes = clean_exit_code(df_clean)
     
     return df_with_exit_codes
@@ -140,7 +147,7 @@ def clean_exit_code(df):
     }
     
     df['exit_code'] = df['exit_code'].map(recode_map)
-    mask = (df['exit_code'] == 'prepaid') & (df['date_exit'] == df['date_maturity'])
+    mask = (df['exit_code'] == 'prepaid') & (df['period_exit'] == df['period_exit'])
     df.loc[mask, 'exit_code'] = 'matured'
     return df
 
@@ -158,11 +165,17 @@ def add_fips(df, cw_state_county):
     )
     return df_with_fips
 
-def add_mortgage_rate(df, mortgage30us):
+def add_mortgage_rate(df, mortgage30us, cw_period_date):
+    mortgage30us_period = (
+        mortgage30us
+        .merge(cw_period_date, left_on='date', right_index=True, how='left')
+        .drop(columns=['date'])
+        .rename(columns={'mortgage_rate': 'rate_mortgage30us'})
+    )
+    
     df_with_mortgage_rates = (
         df
-        .merge(mortgage30us, on='date', how='left')
-        .rename(columns={'mortgage_rate': 'rate_mortgage30us'})
+        .merge(mortgage30us_period, on='period', how='left')
         .assign(rate_gap = lambda x: x['rate_curr'] - x['rate_mortgage30us'])
     )
     return df_with_mortgage_rates
@@ -170,7 +183,7 @@ def add_mortgage_rate(df, mortgage30us):
 def add_event_indicators(df):
     df_with_indicators = (
         df
-        .assign(period_exit = lambda x: x.groupby('loan_id')['date_exit'].ffill().bfill())
+        .assign(period_exit = lambda x: x.groupby('loan_id')['period_exit'].ffill().bfill())
         .assign(time_to_exit = lambda x: x['period_exit'] - x['period'])
         .assign(exit_t1 = lambda x: np.where(x['time_to_exit'] == 1, 1, 0))
         .assign(exit_t3 = lambda x: np.where(x['time_to_exit'] <= 3, 1, 0))
@@ -183,15 +196,15 @@ def add_event_indicators(df):
 
 def finalize_data(df):
     columns = [
-        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "upb_orig", "upb_curr", "ltv", "dti", "n_borrowers",
-        "term", "period_orig", "period_acq", "period_first_pay", "time_to_maturity", 
+        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "upb_orig", "upb_curr", "ltv", "dti", 
+        "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
         "period_maturity", "time_to_exit", "period_exit", "exit_code", 
-        "exit_t1", "exit_t3", "exit_t6", "exit_t12", "exit_t24", "upb_last", "num_bo", 
+        "exit_t1", "exit_t3", "exit_t6", "exit_t12", "exit_t24", "upb_last", 
         "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", "coborrower_credit_score_orig", 
-        "first_home_buyer", "mortgage_type", "state", "state_abbr", "fips_state", "msa", "zip"
+        "first_home_buyer", "mortgage_type", "purpose", "dlq_status", "state", "state_abbr", "fips_state", "msa", "zip"
     ]
-    
-    df = df[columns]
+    df = df.select(columns=columns)
+    print(df.columns)
     return df
 
 if __name__ == '__main__':

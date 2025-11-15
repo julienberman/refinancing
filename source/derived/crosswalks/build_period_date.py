@@ -7,10 +7,10 @@ from source.lib.save_data import save_data
 def main():
     with open('source/lib/config.json', 'r') as file:
         CONFIG = json.load(file)
-    START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     PERIOD = CONFIG['PERIOD']
     OUTDIR = Path("datastore/raw/crosswalks/data")
-    
+    START_DATE = '2000-01-01'
+    END_DATE = '2026-01-01'
     months = pd.date_range(start=START_DATE, end=END_DATE, freq='MS')
     periods = pd.date_range(start=START_DATE, end=END_DATE, freq=PERIOD)
     
