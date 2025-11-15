@@ -35,8 +35,7 @@ def main():
             INDIR / f'{quarter}.csv', sep='|', 
             names=SCHEMAS['fannie_mae'].keys(), 
             dtype=SCHEMAS['fannie_mae'], 
-            low_memory=False,
-            nrows = 100000
+            low_memory=False
         )
         
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
@@ -44,7 +43,6 @@ def main():
         df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
         df_with_indicators = add_event_indicators(df_with_mortgage_rates)
         df_finalized = finalize_data(df_with_indicators)
-        print(df_finalized.query('loan_id == "000137587368"'))
         
         save_data(
             df_finalized,
