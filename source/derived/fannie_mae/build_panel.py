@@ -1,8 +1,22 @@
 import pandas as pd
+import numpy as np
+from pathlib import Path
 
-
+from source.lib.save_data import save_data
 
 def main():
+    INDIR = Path('datastore/output/derived/fannie_mae')
+    INDIR_CW = Path('datastore/raw/crosswalks')
+    
+    fannie_mae = pd.read_parquet(INDIR / 'sflp_clean')
+    cw_state_county = pd.read_csv(INDIR_CW / 'state_county.csv')
+    
+    fannie_mae_with_fips = add_fips(fannie_mae, cw_state_county)
+    fannie_mae_with_indicators = add_event_indicators(fannie_mae_with_fips)
+    
+    pass
+
+def add_fips(df, cw_state_county):
     pass
 
 def add_event_indicators(df):

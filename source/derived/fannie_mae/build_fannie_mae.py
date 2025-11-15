@@ -19,6 +19,7 @@ def main():
     INDIR = Path('datastore/raw/fannie_mae/data')
     INDIR_MORTGAGE_RATES = Path('output/derived/mortgage_rates')
     OUTDIR = Path('datastore/output/derived/fannie_mae/sflp_clean')
+    LOGDIR = Path('output/derived/fannie_mae/sflp_clean')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
     
@@ -41,7 +42,7 @@ def main():
             df_with_mortgage_rates,
             keys=['loan_id', 'date', 'date_acq'],
             out_file=OUTDIR / f'{quarter}.parquet',
-            log_file=OUTDIR / f'{quarter}.log',
+            log_file=LOGDIR / f'{quarter}.log',
             sortbykey=True
         )
         
