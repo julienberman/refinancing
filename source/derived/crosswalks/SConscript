@@ -1,0 +1,17 @@
+Import("*")
+
+helpers = [
+    "#source/lib/save_data.py",
+    "#source/lib/config.json"
+]
+
+source = [
+    "#source/derived/crosswalks/build_period_date.py"
+] + helpers
+
+target = [
+    "#datastore/raw/crosswalks/data/cw_period_date.csv",
+    "#datastore/raw/crosswalks/data/cw_period_date.log"
+]
+
+env.Python(target, source)

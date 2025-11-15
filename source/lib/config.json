@@ -1,5 +1,6 @@
 {
     "SAMPLE_START": "2010-01-01",
-    "SAMPLE_END": "2025-05-01"
+    "SAMPLE_END": "2025-05-01",
+    "PERIOD": "MS"
 }
 
