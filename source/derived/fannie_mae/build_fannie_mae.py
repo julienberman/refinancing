@@ -42,7 +42,8 @@ def main():
         df_with_fips = add_fips(df_clean, cw_state_county)
         df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
         df_with_indicators = add_event_indicators(df_with_mortgage_rates)
-        df_finalized = finalize_data(df_with_indicators)
+        df_with_bins = bin_rate_gap(df_with_indicators)
+        df_finalized = finalize_data(df_with_bins)
         
         save_data(
             df_finalized,
