@@ -32,4 +32,11 @@ env.Python(target, source)
 
 
 
+source = ['#source/derived/fannie_mae/repartition_fannie_mae.py']
+for quarter in QUARTERS:
+    source.append(f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.parquet')
+
+target = '#datastore/output/derived/fannie_mae/sflp_clean'
+
+env.Python(target, source)
 
