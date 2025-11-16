@@ -2,6 +2,7 @@
     "SAMPLE_START": "2015-01-01",
     "SAMPLE_END": "2025-05-01",
     "PERIOD": "MS",
-    "SEED": 123
+    "SEED": 123,
+    "CHUNKSIZE": 100000
 }
 
