@@ -1,5 +1,7 @@
 import pandas as pd
 import json
+import os
+import glob
 from pathlib import Path
 
 from source.lib.helpers.utils import get_quarters
@@ -24,7 +26,12 @@ def main():
             df_part = df.iloc[i: i + CHUNKSIZE]
             part = i // CHUNKSIZE
             df_part.to_parquet(quarter_outdir / f"part_{part}.parquet", index = False)
-
+    
+    # Clean up the original .parquet files
+    for file in glob.glob(str(INDIR / "sflp_clean" / "*.parquet")):
+        print(f"Removing {file}...")
+        os.remove(file)
+    
 if __name__ == "__main__":
     main()
 
