@@ -197,20 +197,17 @@ def bin_rate_gap(df, width=0.2):
     df_with_bins = df.copy()
     bins = np.arange(-6.0, 6.0 + width, width)
     bins = np.concatenate([[-np.inf], bins, [np.inf]])
-    bin_assignments = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
-    for idx in range(len(bins) - 1):
-        df_with_bins[f'rate_gap_bin_{idx}'] = (bin_assignments == idx).astype(int)
-
+    df_with_bins['rate_gap_bin'] = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
     return df_with_bins
 
 def finalize_data(df):
     columns = [
-        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "upb_orig", "upb_curr", "ltv", "dti", 
+        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "rate_gap_bin", "upb_orig", "upb_curr", "ltv", "dti", 
         "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
         "period_maturity", "time_to_exit", "period_exit", "exit_code", "exit_t1", "exit_t3", "exit_t6", "exit_t12", 
-        "exit_t24"] + [col for col in df.columns if col.startswith('rate_gap_bin_')] + ["upb_last", 
-        "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", "coborrower_credit_score_orig",
-        "first_home_buyer", "mortgage_type", "purpose", "dlq_status", "state", "state_abbr", "fips_state", "msa", "zip"
+        "exit_t24", "upb_last", "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", 
+        "coborrower_credit_score_orig", "first_home_buyer", "mortgage_type", "purpose", "dlq_status", 
+        "state", "state_abbr", "fips_state", "msa", "zip"
     ]
     
     df = df.select(columns=columns)

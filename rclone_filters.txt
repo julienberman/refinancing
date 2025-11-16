@@ -3,6 +3,7 @@
 # ============================================
 - *.DS_Store
 - /datastore/raw/fannie_mae/data/**
+- /datastore/output/derived/fannie_mae/sflp_clean/**
 
 # ============================================
 # INCLUSIONS

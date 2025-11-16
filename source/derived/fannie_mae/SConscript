@@ -1,0 +1,35 @@
+Import('*')
+
+import json
+from source.lib.helpers.utils import get_quarters
+with open('../../../source/lib/config.json', 'r') as file:
+    CONFIG = json.load(file)
+QUARTERS = get_quarters(CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END'])
+
+helpers = [
+    '#source/lib/config.json',
+    '#source/lib/schemas.json',
+    '#source/lib/helpers/process_text.py',
+    '#source/lib/helpers/utils.py',
+    '#source/lib/save_data.py'
+]
+
+source = [
+    '#source/derived/fannie_mae/build_fannie_mae.py',
+    Glob('#datastore/raw/fannie_mae/data/*.csv'),
+    '#datastore/raw/crosswalks/data/cw_state_county.csv',
+    '#datastore/raw/crosswalks/data/cw_period_date.csv',
+    '#output/derived/mortgage_rates/mortgage30us.csv'
+] + helpers
+
+
+target = []
+for quarter in QUARTERS:
+    target.append(f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.parquet')
+    target.append(f'#output/derived/fannie_mae/sflp_clean/{quarter}.log')
+
+env.Python(target, source)
+
+
+
+
