@@ -145,7 +145,7 @@ def clean_exit_code(df):
     }
     
     df['exit_code'] = df['exit_code'].map(recode_map)
-    mask = (df['exit_code'] == 'prepaid') & (df['period_exit'] == df['period_exit'])
+    mask = (df['exit_code'] == 'prepaid') & (df['period_exit'] == df['period_maturity'])
     df.loc[mask, 'exit_code'] = 'matured'
     return df
 
@@ -182,6 +182,7 @@ def add_event_indicators(df):
     df_with_indicators = (
         df
         .assign(period_exit = lambda x: x.groupby('loan_id')['period_exit'].ffill().bfill())
+        .assign(exit_code = lambda x: x.groupby('loan_id')['exit_code'].ffill().bfill())
         .assign(time_to_exit = lambda x: x['period_exit'] - x['period'])
         .assign(exit_t1 = lambda x: np.where(x['time_to_exit'] == 1, 1, 0))
         .assign(exit_t3 = lambda x: np.where(x['time_to_exit'] <= 3, 1, 0))
@@ -192,15 +193,26 @@ def add_event_indicators(df):
 
     return df_with_indicators
 
+def bin_rate_gap(df, width=0.2):
+    df_with_bins = df.copy()
+    bins = np.arange(-6.0, 6.0 + width, width)
+    bins = np.concatenate([[-np.inf], bins, [np.inf]])
+    bin_assignments = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
+    for idx in range(len(bins) - 1):
+        df_with_bins[f'rate_gap_bin_{idx}'] = (bin_assignments == idx).astype(int)
+
+    return df_with_bins
+
 def finalize_data(df):
     columns = [
         "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "upb_orig", "upb_curr", "ltv", "dti", 
         "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
-        "period_maturity", "time_to_exit", "period_exit", "exit_code", 
-        "exit_t1", "exit_t3", "exit_t6", "exit_t12", "exit_t24", "upb_last", 
-        "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", "coborrower_credit_score_orig", 
+        "period_maturity", "time_to_exit", "period_exit", "exit_code", "exit_t1", "exit_t3", "exit_t6", "exit_t12", 
+        "exit_t24"] + [col for col in df.columns if col.startswith('rate_gap_bin_')] + ["upb_last", 
+        "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", "coborrower_credit_score_orig",
         "first_home_buyer", "mortgage_type", "purpose", "dlq_status", "state", "state_abbr", "fips_state", "msa", "zip"
     ]
+    
     df = df.select(columns=columns)
     return df
 

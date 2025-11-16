@@ -10,7 +10,7 @@ def main():
     PERIOD = CONFIG['PERIOD']
     OUTDIR = Path("datastore/raw/crosswalks/data")
     START_DATE = '2000-01-01'
-    END_DATE = '2026-01-01'
+    END_DATE = '2056-01-01'
     months = pd.date_range(start=START_DATE, end=END_DATE, freq='MS')
     periods = pd.date_range(start=START_DATE, end=END_DATE, freq=PERIOD)
     
