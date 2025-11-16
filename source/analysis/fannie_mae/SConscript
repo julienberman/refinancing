@@ -1,0 +1,15 @@
+Import('*')
+
+
+
+source = [
+    '#source/analysis/fannie_mae/estimate_refi_probability.R',
+    Glob('#datastore/output/derived/fannie_mae/sflp_clean/*.parquet')
+]
+
+target = [
+    '#output/analysis/fannie_mae/estimate_refi_probability.png'
+]
+
+env.R(target, source)
+
