@@ -195,7 +195,7 @@ def add_event_indicators(df):
 
 def bin_rate_gap(df, width=0.2):
     df_with_bins = df.copy()
-    bins = np.arange(-6.0, 6.0 + width, width)
+    bins = np.arange(-4.0, 4.0 + width, width)
     bins = np.concatenate([[-np.inf], bins, [np.inf]])
     df_with_bins['rate_gap_bin'] = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
     return df_with_bins
