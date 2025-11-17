@@ -95,7 +95,7 @@ def save_df(df, keys, out_file, sortbykey, extension, verbose, n_partitions):
     if extension == '.parquet':
         if n_partitions is not None and n_partitions > 1:
             ddf = dd.from_pandas(df, npartitions = n_partitions)
-            ddf.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
+            ddf.to_parquet(out_file, engine = "pyarrow", compression = "snappy", write_index = False, overwrite = True, compute = True)
         else: 
             df.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
 
