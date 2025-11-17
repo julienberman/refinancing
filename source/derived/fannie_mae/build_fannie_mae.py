@@ -5,6 +5,7 @@ import janitor
 import json
 import pyarrow
 from pathlib import Path
+import glob
 
 from source.lib.helpers.process_text import clean_date, clean_text
 from source.lib.helpers.utils import get_quarters
@@ -23,6 +24,7 @@ def main():
     LOGDIR = Path('output/derived/fannie_mae/sflp_clean')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
+    METADATA = pd.DataFrame({col: pd.Series(dtype=dtype) for col, dtype in SCHEMAS['fannie_mae'].items()})
     
     cw_state_county = pd.read_csv(INDIR_CW / 'cw_state_county.csv')
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
@@ -30,15 +32,9 @@ def main():
     
     for quarter in QUARTERS:
         print(f"Processing {quarter}...")
-        
-        df = pd.read_csv(
-            INDIR / f'{quarter}.csv', 
-            sep='|', 
-            names=SCHEMAS['fannie_mae'].keys(), 
-            dtype=SCHEMAS['fannie_mae'], 
-            low_memory=False
-        )
-        
+        n_chunks = len(list(glob.glob(str(INDIR / f'{quarter}/*.parquet'))))
+        df = pd.read_parquet(INDIR / f'{quarter}')
+
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
         df_with_fips = add_fips(df_clean, cw_state_county)
         df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
@@ -51,10 +47,10 @@ def main():
             keys=['loan_id', 'period'],
             out_file=OUTDIR / f'{quarter}.parquet',
             log_file=LOGDIR / f'{quarter}.log',
-            sortbykey=True
+            sortbykey=True,
+            n_partitions=n_chunks
         )
         
-
 def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
     keep_vars = keep_vars or [
         "LOAN_ID", "ACT_PERIOD", "ORIG_RATE", "CURR_RATE", "ORIG_UPB", "CURRENT_UPB",

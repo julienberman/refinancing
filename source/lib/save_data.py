@@ -5,10 +5,11 @@ import hashlib
 import re
 import pathlib
 import pyarrow
+import dask.dataframe as dd
 
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = True, verbose = True):
+def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = True, verbose = True, n_partitions = None):
     extension = check_extension(out_file)
     check_columns_not_list(df)
     check_keys(df, keys)
@@ -18,7 +19,7 @@ def save_data(df, keys, out_file, log_file = '', append = False, sortbykey = Tru
     df = df[cols_reordered]
     df_hash = hashlib.md5(pd.util.hash_pandas_object(df).values).hexdigest() 
     summary_stats = get_summary_stats(df)
-    save_df(df, keys, out_file, sortbykey, extension, verbose)
+    save_df(df, keys, out_file, sortbykey, extension, verbose, n_partitions)
     save_log(df_hash, keys, summary_stats, out_file, append, log_file)
     
 
@@ -81,7 +82,7 @@ def get_summary_stats(df):
 
     return summary_stats
 
-def save_df(df, keys, out_file, sortbykey, extension, verbose):
+def save_df(df, keys, out_file, sortbykey, extension, verbose, n_partitions):
     if sortbykey:
         df.sort_values(keys, inplace = True)
     
@@ -92,7 +93,11 @@ def save_df(df, keys, out_file, sortbykey, extension, verbose):
     if extension == '.xlsx':
         df.to_excel(out_file, index = False)
     if extension == '.parquet':
-        df.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
+        if n_partitions is not None and n_partitions > 1:
+            ddf = dd.from_pandas(df, npartitions = n_partitions)
+            ddf.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
+        else: 
+            df.to_parquet(out_file, engine = "pyarrow", compression = "snappy", index = False)
 
     if verbose:
         print(f"File '{out_file}' saved successfully.")
