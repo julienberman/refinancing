@@ -6,7 +6,6 @@ from source.lib.helpers.utils import get_quarters
 with open('../../../source/lib/config.json', 'r') as file:
     CONFIG = json.load(file)
 QUARTERS = get_quarters(CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END'])
-N_PARTITIONS = CONFIG['N_PARTITIONS']
 
 helpers = [
     '#source/lib/config.json',

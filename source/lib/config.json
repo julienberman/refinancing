@@ -1,9 +1,8 @@
 {
     "SAMPLE_START": "2015-01-01",
-    "SAMPLE_END": "2025-05-01",
+    "SAMPLE_END": "2015-05-01",
     "PERIOD": "MS",
     "SEED": 123,
-    "CHUNKSIZE": 100000,
-    "N_PARTITIONS": 1000
+    "CHUNKSIZE": 100000
 }
 
