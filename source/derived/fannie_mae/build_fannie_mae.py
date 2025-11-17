@@ -32,7 +32,8 @@ def main():
         print(f"Processing {quarter}...")
         
         df = pd.read_csv(
-            INDIR / f'{quarter}.csv', sep='|', 
+            INDIR / f'{quarter}.csv', 
+            sep='|', 
             names=SCHEMAS['fannie_mae'].keys(), 
             dtype=SCHEMAS['fannie_mae'], 
             low_memory=False
