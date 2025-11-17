@@ -1,5 +1,6 @@
 Import('*')
 
+import glob
 import json
 from source.lib.helpers.utils import get_quarters
 with open('../../../source/lib/config.json', 'r') as file:
@@ -25,7 +26,8 @@ source = [
 
 target = []
 for quarter in QUARTERS:
-    target.append(f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.parquet')
+    n_partitions = len(list(glob.glob(str('datastore/raw/fannie_mae/data/' + quarter + '/*.parquet'))))
+    target.append(f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.part_{i}.parquet' for i in range(n_partitions))
     target.append(f'#output/derived/fannie_mae/sflp_clean/{quarter}.log')
 
 env.Python(target, source)
