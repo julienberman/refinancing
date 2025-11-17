@@ -26,7 +26,7 @@ source = [
 target = []
 for quarter in QUARTERS:
     n_partitions = len(list(glob.glob(str('datastore/raw/fannie_mae/data/' + quarter + '/*.parquet'))))
-    target.append(f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.part_{i}.parquet' for i in range(n_partitions))
+    target.extend([f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}.part_{i}.parquet' for i in range(n_partitions)])
     target.append(f'#output/derived/fannie_mae/sflp_clean/{quarter}.log')
 
 env.Python(target, source)
