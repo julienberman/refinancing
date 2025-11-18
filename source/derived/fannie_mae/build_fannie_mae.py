@@ -45,7 +45,7 @@ def main():
         save_data(
             df_finalized,
             keys=['loan_id', 'period'],
-            out_file=OUTDIR / f'{quarter}.parquet',
+            out_file=OUTDIR / f'{quarter}',
             log_file=LOGDIR / f'{quarter}.log',
             sortbykey=True,
             n_partitions=n_chunks
