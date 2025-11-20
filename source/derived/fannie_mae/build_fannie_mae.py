@@ -7,6 +7,7 @@ import pyarrow
 from pathlib import Path
 import glob
 import gc
+import time
 
 from source.lib.helpers.process_text import clean_date, clean_text
 from source.lib.helpers.utils import get_quarters
@@ -33,6 +34,7 @@ def main():
     mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv', parse_dates=['date'])
     
     for quarter in QUARTERS:
+        start_time = time.time()
         
         parquet_files = glob.glob(str(INDIR / f'{quarter}/*.parquet'))
         n_chunks = len(parquet_files)
@@ -55,6 +57,9 @@ def main():
             sortbykey=True,
             n_partitions=n_chunks
         )
+        
+        elapsed_time = time.time() - start_time
+        print(f"Completed {quarter} in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)")
         
         del df, df_clean, df_with_fips, df_with_mortgage_rates, df_with_indicators, df_with_bins, df_finalized
         gc.collect()
