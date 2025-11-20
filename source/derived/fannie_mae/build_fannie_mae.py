@@ -13,8 +13,12 @@ from source.lib.helpers.utils import get_quarters
 from source.lib.save_data import save_data
 
 def main():
+    pd.set_option('future.no_silent_downcasting', True)
+    
     with open('source/lib/config.json', 'r') as f:
         CONFIG = json.load(f)
+    with open('source/lib/schemas.json', 'r') as f:
+        SCHEMAS = json.load(f)
     
     INDIR = Path('datastore/raw/fannie_mae/data')
     INDIR_CW = Path('datastore/raw/crosswalks/data')
@@ -30,8 +34,10 @@ def main():
     
     for quarter in QUARTERS:
         
-        n_chunks = len(list(glob.glob(str(INDIR / f'{quarter}/*.parquet'))))
-        df = pd.read_parquet(INDIR / f'{quarter}')
+        parquet_files = glob.glob(str(INDIR / f'{quarter}/*.parquet'))
+        n_chunks = len(parquet_files)
+        dfs = [pd.read_parquet(file) for file in parquet_files]
+        df = pd.concat(dfs, ignore_index=True)
         print(f"Processing {quarter}: Size {df.shape[0]}")
         
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
