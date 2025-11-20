@@ -6,6 +6,7 @@ import json
 import pyarrow
 from pathlib import Path
 import glob
+import gc
 
 from source.lib.helpers.process_text import clean_date, clean_text
 from source.lib.helpers.utils import get_quarters
@@ -14,8 +15,6 @@ from source.lib.save_data import save_data
 def main():
     with open('source/lib/config.json', 'r') as f:
         CONFIG = json.load(f)
-    with open('source/lib/schemas.json', 'r') as f:
-        SCHEMAS = json.load(f)
     
     INDIR = Path('datastore/raw/fannie_mae/data')
     INDIR_CW = Path('datastore/raw/crosswalks/data')
@@ -24,17 +23,17 @@ def main():
     LOGDIR = Path('output/derived/fannie_mae/sflp_clean')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
-    METADATA = pd.DataFrame({col: pd.Series(dtype=dtype) for col, dtype in SCHEMAS['fannie_mae'].items()})
     
     cw_state_county = pd.read_csv(INDIR_CW / 'cw_state_county.csv')
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
     mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv', parse_dates=['date'])
     
     for quarter in QUARTERS:
-        print(f"Processing {quarter}...")
+        
         n_chunks = len(list(glob.glob(str(INDIR / f'{quarter}/*.parquet'))))
         df = pd.read_parquet(INDIR / f'{quarter}')
-
+        print(f"Processing {quarter}: Size {df.shape[0]}")
+        
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
         df_with_fips = add_fips(df_clean, cw_state_county)
         df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
@@ -50,6 +49,9 @@ def main():
             sortbykey=True,
             n_partitions=n_chunks
         )
+        
+        del df, df_clean, df_with_fips, df_with_mortgage_rates, df_with_indicators, df_with_bins, df_finalized
+        gc.collect()
         
 def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
     keep_vars = keep_vars or [
@@ -86,6 +88,15 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
         "curr_scorec": "coborrower_credit_score_curr"
     }
     
+    date_cols = {
+        'date_orig': 'period_orig',
+        'date_first_pay': 'period_first_pay', 
+        'date_maturity': 'period_maturity',
+        'date_exit': 'period_exit',
+        'date_acq': 'period_acq',
+        'date': 'period'
+    }
+    
     df_clean = (
         df
         .select(columns=keep_vars)
@@ -99,18 +110,16 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
             date_acq = lambda x: create_acquisition_date(quarter),
             date = lambda x: clean_date(x['date'], pattern='mmyyyy')
         )
-        .merge(cw_period_date, left_on='date_orig', right_index=True, how='left').rename(columns={'period': 'period_orig'})
-        .merge(cw_period_date, left_on='date_first_pay', right_index=True, how='left').rename(columns={'period': 'period_first_pay'})
-        .merge(cw_period_date, left_on='date_maturity', right_index=True, how='left').rename(columns={'period': 'period_maturity'})
-        .merge(cw_period_date, left_on='date_exit', right_index=True, how='left').rename(columns={'period': 'period_exit'})
-        .merge(cw_period_date, left_on='date_acq', right_index=True, how='left').rename(columns={'period': 'period_acq'})
-        .merge(cw_period_date, left_on='date', right_index=True, how='left')
-        .drop(columns=['date_orig', 'date_first_pay', 'date_maturity', 'date_exit', 'date_acq', 'date'])
         .assign(
             first_home_buyer = lambda x: x['first_home_buyer'].map({'Y': 1, 'N': 0}),
             mortgage_type = lambda x: x['mortgage_type'].map({'FRM': 'fixed', 'ARM': 'adjustable'})
         )
     )
+    
+    for date_col, period_col in date_cols.items():
+        df_clean[period_col] = df_clean[date_col].map(cw_period_date['period'])
+    
+    df_clean = df_clean.drop(columns=list(date_cols.keys()))
     
     df_with_exit_codes = clean_exit_code(df_clean)
     
@@ -177,26 +186,21 @@ def add_mortgage_rate(df, mortgage30us, cw_period_date):
     return df_with_mortgage_rates
 
 def add_event_indicators(df):
-    df_with_indicators = (
-        df
-        .assign(period_exit = lambda x: x.groupby('loan_id')['period_exit'].ffill().bfill())
-        .assign(exit_code = lambda x: x.groupby('loan_id')['exit_code'].ffill().bfill())
-        .assign(time_to_exit = lambda x: x['period_exit'] - x['period'])
-        .assign(exit_t1 = lambda x: np.where(x['time_to_exit'] == 1, 1, 0))
-        .assign(exit_t3 = lambda x: np.where(x['time_to_exit'] <= 3, 1, 0))
-        .assign(exit_t6 = lambda x: np.where(x['time_to_exit'] <= 6, 1, 0))
-        .assign(exit_t12 = lambda x: np.where(x['time_to_exit'] <= 12, 1, 0))
-        .assign(exit_t24 = lambda x: np.where(x['time_to_exit'] <= 24, 1, 0))
-    )
-
-    return df_with_indicators
+    df['period_exit'] = df.groupby('loan_id')['period_exit'].transform(lambda x: x.ffill().bfill())
+    df['exit_code'] = df.groupby('loan_id')['exit_code'].transform(lambda x: x.ffill().bfill())
+    df['time_to_exit'] = df['period_exit'] - df['period']
+    df['exit_t1'] = np.where(df['time_to_exit'] == 1, 1, 0)
+    df['exit_t3'] = np.where(df['time_to_exit'] <= 3, 1, 0)
+    df['exit_t6'] = np.where(df['time_to_exit'] <= 6, 1, 0)
+    df['exit_t12'] = np.where(df['time_to_exit'] <= 12, 1, 0)
+    df['exit_t24'] = np.where(df['time_to_exit'] <= 24, 1, 0)
+    return df
 
 def bin_rate_gap(df, width=0.2):
-    df_with_bins = df.copy()
     bins = np.arange(-4.0, 4.0 + width, width)
     bins = np.concatenate([[-np.inf], bins, [np.inf]])
-    df_with_bins['rate_gap_bin'] = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
-    return df_with_bins
+    df['rate_gap_bin'] = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
+    return df
 
 def finalize_data(df):
     columns = [
