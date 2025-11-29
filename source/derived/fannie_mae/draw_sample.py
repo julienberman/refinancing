@@ -22,7 +22,7 @@ def main():
     save_data(
         sample,
         keys = ['loan_id', 'period'],
-        out_file = OUTDIR / "sflp_sample.csv",
+        out_file = OUTDIR / "sflp_sample.parquet",
         log_file = OUTDIR / "sflp_sample.log",
         sortbykey = True
     )
