@@ -14,13 +14,11 @@ def main():
     OUTDIR = Path('datastore/output/derived/fannie_mae')
     SEED = CONFIG['SEED']
     SAMPLE_SIZE = CONFIG['SAMPLE_SIZE']
-    print("Reading data...")
+
     ddf = dd.read_parquet(INDIR / 'sflp_clean')
     
-    print("Building sample...")
     sample = build_sample(ddf, random_state=SEED, sample_size=SAMPLE_SIZE).compute()
     
-    print("Saving data...")
     save_data(
         sample,
         keys = ['loan_id', 'period'],
