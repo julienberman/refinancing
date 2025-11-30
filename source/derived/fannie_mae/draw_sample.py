@@ -15,6 +15,9 @@ def main():
     OUTDIR = Path('datastore/output/derived/fannie_mae')
     SEED = CONFIG['SEED']
     SAMPLE_SIZE = CONFIG['SAMPLE_SIZE']
+    
+    cluster = LocalCluster(n_workers=32, threads_per_worker=1, memory_limit='16 GiB')
+    client = Client(cluster)
 
     ddf = dd.read_parquet(INDIR / 'sflp_clean')
     
