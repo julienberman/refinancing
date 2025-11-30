@@ -31,15 +31,6 @@ def main():
         sortbykey = True
     )
 
-# def build_sample(ddf, random_state=123, sample_size=0.01):
-#     np.random.seed(random_state)
-#     mask = ((ddf['mortgage_type'] == 'fixed') & (ddf['term'] == 360))
-#     ddf_filtered = ddf[mask]
-#     units = ddf_filtered['loan_id'].unique().compute()
-#     sample_units = np.random.choice(units, size=int(sample_size * len(units)), replace=False)
-#     ddf_sample = ddf_filtered[ddf_filtered['loan_id'].isin(sample_units)]
-#     return ddf_sample
-
 def build_sample(ddf, random_state=123, sample_size=0.005):
     mask = ((ddf['mortgage_type'] == 'fixed') & (ddf['term'] == 360))
     ddf_filtered = ddf[mask]
