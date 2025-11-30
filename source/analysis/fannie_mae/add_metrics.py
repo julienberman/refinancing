@@ -30,7 +30,6 @@ def add_ind_refi_eligible(df):
     return df
 
 
-
 def add_adl_threshold(df):
     # Refinance when i - i_0 < optimal refinance threshold
     # transaction costs, discount rate, marginal tax rate, probability of move --> compute optimal refinance threshold
@@ -69,9 +68,6 @@ def add_adl_threshold(df):
     df['should_refi'] = (df['rate_gap'] > df['adl_threshold']).astype(int)
     
     return df
-
-def add_ind_should_refi(df):
-    pass
 
 def add_savings_from_refi(df):
     pass
