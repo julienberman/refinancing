@@ -43,18 +43,32 @@ def add_adl_threshold(df):
         .sort_values(by=['period'])
         .assign(mortgage_rate_diff = lambda x: x['mortgage30us'] - x['mortgage30us'].shift(1))
         ['mortgage_rate_diff']
+        / 100
         .dropna()
         .std() * np.sqrt(12)
     )
     
-    # Transaction costs: 1 percent of the unpaid balance, plus $2,000
-    df['transaction_costs'] = 0.01 * df['upb_curr'] + 2000
-    
+    rate_orig = (df['rate_orig'] / 100)
+    upb_curr = df['upb_curr']
+    upb_orig = df['upb_orig']
+    term = df['term']
+    expected_inflation = 0.025
     discount_rate = 0.05
     prob_move = 0.1
     marginal_tax_rate = 0.28
     
-    pass
+    # Transaction costs: 1 percent of the unpaid balance, plus $2,000
+    k = 0.01 * df['upb_curr'] + 2000
+    
+    # Annual p&i repayment
+    p = 12 * (upb_orig * (rate_orig / 12)) / (1 - (1 + (rate_orig / 12))**(-term))
+    
+    lbda = prob_move + (p / upb_curr - rate_orig) + expected_inflation
+    
+    df['adl_threshold'] = 100 * np.sqrt( ((mortgage_rate_vol * k) / (upb_curr * (1 - marginal_tax_rate))) * np.sqrt(2*(discount_rate + lbda)) )
+    df['should_refi'] = (df['rate_gap'] > df['adl_threshold']).astype(int)
+    
+    return df
 
 def add_ind_should_refi(df):
     pass
