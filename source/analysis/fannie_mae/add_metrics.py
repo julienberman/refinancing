@@ -52,6 +52,7 @@ def add_adl_threshold(df):
     upb_orig = df['upb_orig']
     term = df['term']
     expected_inflation = 0.025
+    # Does this need to be monthly?
     discount_rate = 0.05
     prob_move = 0.1
     marginal_tax_rate = 0.28
