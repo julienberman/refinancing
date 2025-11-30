@@ -21,7 +21,7 @@ def main():
 
     ddf = dd.read_parquet(INDIR / 'sflp_clean')
     
-    sample = build_sample(ddf, random_state=SEED, sample_size=0.001).compute()
+    sample = build_sample(ddf, random_state=SEED, sample_size=SAMPLE_SIZE).compute()
     
     save_data(
         sample,
