@@ -46,7 +46,9 @@ def main():
         df_with_fips = add_fips(df_clean, cw_state_county)
         df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
         df_with_indicators = add_event_indicators(df_with_mortgage_rates)
-        df_with_bins = bin_rate_gap(df_with_indicators)
+        df_with_monthly_payment = compute_monthly_payment(df_with_indicators)
+        df_with_current_upb = compute_current_upb(df_with_monthly_payment)
+        df_with_bins = bin_rate_gap(df_with_current_upb)
         df_finalized = finalize_data(df_with_bins)
         
         save_data(
@@ -67,7 +69,7 @@ def main():
 def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
     keep_vars = keep_vars or [
         "LOAN_ID", "ACT_PERIOD", "ORIG_RATE", "CURR_RATE", "ORIG_UPB", "CURRENT_UPB",
-        "ORIG_TERM", "ORIG_DATE", "FIRST_PAY", "LOAN_AGE", "ADJ_REM_MONTHS", "MATR_DT",
+        "ORIG_TERM", "ORIG_DATE", "FIRST_PAY", "LOAN_AGE", "MATR_DT",
         "OLTV", "NUM_BO", "DTI", "CSCORE_B", "CSCORE_C", "FIRST_FLAG", "PURPOSE",
         "STATE", "MSA", "ZIP", "PRODUCT", "DLQ_STATUS", "ZERO_BAL_CODE", "ZB_DTE",
         "LAST_UPB", "CURR_SCOREB", "CURR_SCOREC"
@@ -83,7 +85,6 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
         "orig_date": "date_orig",
         "first_pay": "date_first_pay",
         "loan_age": "time_from_orig",
-        "adj_rem_months": "time_to_maturity",
         "matr_dt": "date_maturity",
         "oltv": "ltv",
         "num_bo": "n_borrowers",
@@ -130,7 +131,11 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
     for date_col, period_col in date_cols.items():
         df_clean[period_col] = df_clean[date_col].map(cw_period_date['period'])
     
-    df_clean = df_clean.drop(columns=list(date_cols.keys()))
+    df_clean = (
+        df_clean
+        .drop(columns=list(date_cols.keys()))
+        .assign(time_to_maturity = lambda x: x['period_maturity'] - x['period'])
+    )
     
     df_with_exit_codes = clean_exit_code(df_clean)
     
@@ -199,12 +204,34 @@ def add_mortgage_rate(df, mortgage30us, cw_period_date):
 def add_event_indicators(df):
     df['period_exit'] = df.groupby('loan_id')['period_exit'].transform(lambda x: x.ffill().bfill())
     df['exit_code'] = df.groupby('loan_id')['exit_code'].transform(lambda x: x.ffill().bfill())
+    df['upb_last'] = df.groupby('loan_id')['upb_last'].transform(lambda x: x.ffill().bfill())
     df['time_to_exit'] = df['period_exit'] - df['period']
     df['exit_t1'] = np.where(df['time_to_exit'] == 1, 1, 0)
     df['exit_t3'] = np.where(df['time_to_exit'] <= 3, 1, 0)
     df['exit_t6'] = np.where(df['time_to_exit'] <= 6, 1, 0)
     df['exit_t12'] = np.where(df['time_to_exit'] <= 12, 1, 0)
     df['exit_t24'] = np.where(df['time_to_exit'] <= 24, 1, 0)
+    return df
+
+def compute_monthly_payment(df):
+    """Compute monthly mortgage payment"""
+    r = (df["rate_orig"] / 100) / 12
+    P = df["upb_orig"]
+    T = df["term"]
+    df["monthly_payment"] = P * (r * (1+r)**T) / ((1+r)**T - 1)
+    return df
+
+def compute_current_upb(df):
+    """Calculate current UPB at a given loan age"""
+    r = (df["rate_orig"] / 100) / 12
+    P = df["upb_orig"]
+    T = df["term"]
+    n = df["time_from_orig"]
+    df['upb_curr_imputed'] = P * ((1 + r)**T - (1 + r)**n) / ((1 + r)**T - 1)
+    
+    mask = (df['upb_curr'] == 0) & (df.groupby('loan_id').cumcount() < 6)
+    df.loc[mask, 'upb_curr'] = df.loc[mask, 'upb_curr_imputed']
+    df = df.reset_index(drop=True)
     return df
 
 def bin_rate_gap(df, width=0.2):
@@ -215,8 +242,8 @@ def bin_rate_gap(df, width=0.2):
 
 def finalize_data(df):
     columns = [
-        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "rate_gap_bin", "upb_orig", "upb_curr", "ltv", "dti", 
-        "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
+        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "rate_gap_bin", "upb_orig", "upb_curr", 
+        "upb_curr_imputed", "monthly_payment", "ltv", "dti", "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
         "period_maturity", "time_to_exit", "period_exit", "exit_code", "exit_t1", "exit_t3", "exit_t6", "exit_t12", 
         "exit_t24", "upb_last", "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", 
         "coborrower_credit_score_orig", "first_home_buyer", "mortgage_type", "purpose", "dlq_status", 
