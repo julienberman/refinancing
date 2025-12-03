@@ -4,18 +4,31 @@ library(fixest)
 library(broom)
 library(ggplot2)
 
+INDIR <- "datastore/output/derived/fannie_mae"
+fannie_mae <- fread(file.path(INDIR, "sample_with_savings.csv"))
+
+fannie_mae %>% count(adl_gap_bin)
+
+model_2 <- feols(
+    exit_t1 ~ 0 + i(adl_gap_bin),
+    data = fannie_mae
+)
+
+
+
+
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
 
-    fannie_mae <- fread(file.path(INDIR, "sflp_sample.csv"))
+    fannie_mae <- fread(file.path(INDIR, "sample_with_savings.csv"))
 
-    model_t1 <- feols(
+    model_1 <- feols(
         exit_t1 ~ 0 + i(rate_gap_bin),
         data = fannie_mae
     )
 
     plot_refi_probability(
-        model_t1,
+        model_1,
         title = "Effect of Rate Gap on Exit Probability: 1-month horizon",
         xlabel = "Rate Gap",
         ylabel = "Coefficient Estimate",
@@ -23,60 +36,19 @@ main <- function() {
         out_file = "output/analysis/fannie_mae/refi_probability_t1.png"
     )
 
-    model_t3 <- feols(
-        exit_t3 ~ 0 + i(rate_gap_bin),
+    model_2 <- feols(
+        exit_t1 ~ 0 + i(adl_gap_bin),
         data = fannie_mae
     )
 
     plot_refi_probability(
-        model_t3,
-        title = "Effect of Rate Gap on Exit Probability: 3-month horizon",
-        xlabel = "Rate Gap",
+        model_2,
+        title = "Effect of ADL Gap on Exit Probability: 1-month horizon",
+        xlabel = "Rate Gap - ADL Threshold",
         ylabel = "Coefficient Estimate",
+        var = "adl_gap_bin",
         save = TRUE,
-        out_file = "output/analysis/fannie_mae/refi_probability_t3.png"
-    )
-
-    model_t6 <- feols(
-        exit_t6 ~ 0 + i(rate_gap_bin),
-        data = fannie_mae
-    )
-
-    plot_refi_probability(
-        model_t6,
-        title = "Effect of Rate Gap on Exit Probability: 6-month horizon",
-        xlabel = "Rate Gap",
-        ylabel = "Coefficient Estimate",
-        save = TRUE,
-        out_file = "output/analysis/fannie_mae/refi_probability_t6.png"
-    )
-
-    model_t12 <- feols(
-        exit_t12 ~ 0 + i(rate_gap_bin),
-        data = fannie_mae
-    )
-
-    plot_refi_probability(
-        model_t12,
-        title = "Effect of Rate Gap on Exit Probability: 12-month horizon",
-        xlabel = "Rate Gap",
-        ylabel = "Coefficient Estimate",
-        save = TRUE,
-        out_file = "output/analysis/fannie_mae/refi_probability_t12.png"
-    )
-
-    model_t24 <- feols(
-        exit_t24 ~ 0 + i(rate_gap_bin),
-        data = fannie_mae
-    )
-
-    plot_refi_probability(
-        model_t24,
-        title = "Effect of Rate Gap on Exit Probability: 24-month horizon",
-        xlabel = "Rate Gap",
-        ylabel = "Coefficient Estimate",
-        save = TRUE,
-        out_file = "output/analysis/fannie_mae/refi_probability_t24.png"
+        out_file = "output/analysis/fannie_mae/refi_probability_adl.png"
     )
 }
 
@@ -86,13 +58,13 @@ plot_refi_probability <- function(
   xlabel = "Rate Gap",
   ylabel = "Coefficient Estimate",
   save = FALSE,
+  var = "rate_gap_bin",
   out_file = "output/analysis/fannie_mae/refi_probability.png"
 ) {
     results <- tidy(model, conf.int = TRUE) %>%
-        filter(grepl("rate_gap_bin", term)) %>%
-        mutate(bin = as.numeric(sub("rate_gap_bin::", "", term))) %>%
-        arrange(bin) %>%
-        filter(bin >= 15 & bin <= 45)
+        filter(grepl(var, term)) %>%
+        mutate(bin = as.numeric(sub(paste0(var, "::"), "", term)))
+
 
     plot <- ggplot(results, aes(x = bin, y = estimate)) +
         geom_point(size = 3, color = "#2C3E50") +
