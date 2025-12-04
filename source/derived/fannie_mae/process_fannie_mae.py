@@ -32,7 +32,7 @@ def main():
     #### END TEMPORARY
     
     mortgage30us = pd.read_csv(INDIR_FRED / 'mortgage30us.csv', parse_dates=['date'])
-    cpi = pd.read_csv(INDIR_FRED / 'cpiauscl.csv', parse_dates=['date'])
+    cpi = pd.read_csv(INDIR_FRED / 'cpiaucsl.csv', parse_dates=['date'])
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
     
     df = add_event_indicators(df)
@@ -44,6 +44,7 @@ def main():
     for PARAMETER_TYPE, PARAMETERS in PARAMETER_LIST.items():
         df_adl = compute_adl_threshold(df, mortgage30us, parameters=PARAMETERS)
         df_adl = compute_adl_gap(df_adl)
+        df_adl = compute_should_refi(df_adl)
         df_adl = df_adl.groupby('loan_id', as_index=False).apply(compute_savings)
         df_adl = compute_inflation_adjustments(df_adl, cpi, cw_period_date)
         
@@ -86,7 +87,7 @@ def add_fred(df, mortgage30us, cpi, cw_period_date):
     df_with_mortgage_rates = (
         df
         .merge(mortgage30us_period.rename(columns={'mortgage_rate': 'rate_mortgage30us'}), on='period', how='left')
-        .merge(mortgage30us_period.rename(columns={'mortgage_rate': 'rate_mortgage30us_orig'}), on='period_orig', how='left')
+        .merge(mortgage30us_period.rename(columns={'mortgage_rate': 'rate_mortgage30us_orig', 'period': 'period_orig'}), on='period_orig', how='left')
     )
     
     cpi_period = (
@@ -121,11 +122,13 @@ def impute_current_upb(df):
 def compute_rate_spread(df):
     df['rate_spread_orig'] = df['rate_orig'] - df['rate_mortgage30us_orig']
     data_train = df.drop_duplicates(subset=['loan_id'])
-    X_train = data_train[['rate_mortgage30us', 'ltv', 'credit_score_orig', 'n_borrowers', 'dti']]
+    X_train = data_train[['rate_mortgage30us_orig']].rename(columns={'rate_mortgage30us_orig': 'rate'})
+    # X_train = data_train[['rate_mortgage30us', 'ltv', 'credit_score_orig', 'n_borrowers', 'dti']]
     y_train = data_train['rate_spread_orig']
     model = LinearRegression().fit(X_train, y_train)
     
-    df['rate_spread_pred'] = model.predict(df[['rate_mortgage30us', 'ltv', 'credit_score_orig', 'n_borrowers', 'dti']])
+    df['rate_spread_pred'] = model.predict(df[['rate_mortgage30us']].rename(columns={'rate_mortgage30us': 'rate'}))
+    df['rate_mortgage30us_adj'] = df['rate_mortgage30us'] + df['rate_spread_pred']
     return df
 
 def compute_rate_gap(df, bin_size=0.2, min_bin = -4.0, max_bin = 4.0):
@@ -182,6 +185,11 @@ def compute_adl_gap(df, bin_size=0.2, min_bin = -4.0, max_bin = 4.0):
     df['adl_gap_adj_bin'] = pd.cut(df['adl_gap_adj'], bins=bins, right=False, include_lowest=True, labels=False)
     return df
 
+def compute_should_refi(df):
+    df['should_refi'] = np.where(df['rate_gap_adj'] > df['adl_threshold'], 1, 0)
+    df['should_refi_adj'] = np.where(df['rate_gap_adj'] > df['adl_threshold'], 1, 0)
+    return df
+
 def compute_savings(group):
     group = group.copy() 
     group['npv_never_refi'] = compute_npv_never_refi(group)
@@ -214,13 +222,17 @@ def compute_npv_optimal_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     upb_orig = group['upb_orig'].iloc[0]
     monthly_payment_orig = compute_annuity(interest_rate=monthly_interest_rate_orig, term=term_orig, principal=upb_orig)
     
-    refi_period = group.loc[group['should_refi'] == 1, 'period'].min()
+    mask = group['should_refi_adj'] == 1
+    if not mask.any():
+        npv = monthly_payment_orig * ((1 - (1 + monthly_discount_rate)**(-term_orig) ) / monthly_discount_rate)
+        return npv
+    
+    refi_period = group.loc[mask, 'period'].min()
     monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj']) / 100) / 12
     term_new = group.loc[group['period'] == refi_period, 'time_to_maturity'].item()
     upb_new = group.loc[group['period'] == refi_period, 'upb_curr'].item()
     monthly_payment_new = compute_annuity(interest_rate=monthly_interest_rate_new, term=term_new, principal=upb_new)
     
-
     npv_orig = monthly_payment_orig * ((1 - (1 + monthly_discount_rate)**(-(term_orig - term_new)) ) / monthly_discount_rate)
     npv_new = monthly_payment_new * ((1 - (1 + monthly_discount_rate)**(-term_new) ) / monthly_discount_rate) * ((1 + monthly_discount_rate)**(-(term_orig - term_new)))
     npv_transaction_cost = (0.01 * upb_new + 2000) * ((1 + monthly_discount_rate)**(-(term_orig - term_new)))
@@ -236,6 +248,10 @@ def compute_npv_realized_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     term_orig = group['term'].iloc[0]
     upb_orig = group['upb_orig'].iloc[0]
     monthly_payment_orig = compute_annuity(interest_rate=monthly_interest_rate_orig, term=term_orig, principal=upb_orig)
+    
+    if group['period_exit'].isna().all():
+        npv = monthly_payment_orig * ((1 - (1 + monthly_discount_rate)**(-term_orig) ) / monthly_discount_rate)
+        return npv
     
     refi_period = group['period_exit'].iloc[0] - 1
     monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj']) / 100) / 12
