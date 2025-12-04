@@ -1,0 +1,16 @@
+Import('*')
+
+helpers = [
+    '#source/lib/parameters.json'
+]
+
+source = [
+    '#source/analysis/table_savings/table_savings.py'
+] + helpers
+
+target = [
+    '#output/analysis/table_savings/table_savings.txt'
+]
+
+env.Python(target, source)
+

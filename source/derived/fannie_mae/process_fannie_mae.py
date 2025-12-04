@@ -35,8 +35,8 @@ def main():
     for PARAMETER_TYPE, PARAMETERS in PARAMETER_LIST.items():
         df_adl = compute_adl_threshold(df, mortgage30us, parameters=PARAMETERS)
         df_adl = compute_adl_gap(df_adl)
-        df_adl = compute_savings(df_adl)
-        df_adl = compute_inflation_adjustments(df_adl, cpi, vars=['rate_orig', 'rate_curr', 'upb_orig', 'upb_curr'])
+        df_adl = df_adl.groupby('loan_id', as_index=False).apply(compute_savings)
+        df_adl = compute_inflation_adjustments(df_adl, cpi, cw_period_date)
         
         df_adl_full = df_adl[MASK_FULL_SAMPLE]
         df_adl_refi_eligible = df_adl[MASK_REFI_ELIGIBLE]
@@ -238,14 +238,16 @@ def compute_npv_realized_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     npv = npv_orig + npv_new + npv_transaction_cost
     return npv
 
-def compute_inflation_adjustments(df, cpi, vars=None, base_period='2025-01-01'):
-    if vars is None or any(var not in df.columns for var in vars):
-        raise ValueError("Variable list invalid.")
+def compute_inflation_adjustments(df, cpi, cw_period_date, base_period='2025-01-01'):
+
+    cpi_period = cpi.merge(cw_period_date, left_on='date', right_index=True, how='left')
+    df['cpi_base'] = cpi_period.loc[cpi['date'] == base_period, 'cpi'].item()
+    df = df.merge(cpi_period.rename(columns={'cpi': 'cpi_at_orig'}), on='period_orig', how='left')
     
-    df['cpi_base'] = cpi.loc[cpi['date'] == base_period, 'cpi'].item()
-    for var in vars:
-        df[f'{var}_adj'] = df[var] * (df['cpi_base'] / df['cpi'])
-    df = df.drop(columns=['cpi_base'])
+    df['savings_optimal_refi_adj'] = df['savings_optimal_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
+    df['savings_realized_refi_adj'] = df['savings_realized_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
+    df['savings_loss_adj'] = df['savings_loss'] * (df['cpi_base'] / df['cpi_at_orig'])
+    df = df.drop(columns=['cpi_base', 'cpi_at_orig'])
     return df
 
 if __name__ == '__main__':

@@ -48,7 +48,7 @@ target = [
 env.Python(target, source)
 
 helpers = [
-    '#source/lib/config.json',
+    '#source/lib/parameters.json',
     '#source/lib/save_data.py'
 ]
 

@@ -1,7 +1,7 @@
 Import('*')
 
 # SConscript('sce/SConscript')
-SConscript('mortgage_rates/SConscript')
+SConscript('fred/SConscript')
 SConscript('fannie_mae/SConscript')
 SConscript('crosswalks/SConscript')
 
