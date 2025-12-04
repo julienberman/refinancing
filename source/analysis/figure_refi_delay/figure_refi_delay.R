@@ -5,7 +5,6 @@ library(broom)
 library(ggplot2)
 library(arrow)
 
-
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
     OUTDIR <- "output/analysis/figure_refi_delay"

@@ -20,17 +20,17 @@ def main():
         mean_savings_optimal_refi_full = df_full_aggregated['savings_optimal_refi_adj'].mean()
         mean_savings_realized_refi_full = df_full_aggregated['savings_realized_refi_adj'].mean()
         mean_savings_loss_full = df_full_aggregated['savings_loss_adj'].mean()
-        autofill_list.append([PARAMETER_TYPE, "Full", annual_discount_rate, prob_move, marginal_tax_rate, mean_savings_optimal_refi_full, mean_savings_realized_refi_full, mean_savings_loss_full])
+        autofill_list.append([PARAMETER_TYPE.lower(), "Full", annual_discount_rate, prob_move, marginal_tax_rate, mean_savings_optimal_refi_full, mean_savings_realized_refi_full, mean_savings_loss_full])
         
         df_refi_eligible = pd.read_parquet(INDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_refi_eligible.parquet')
         df_refi_eligible_aggregated = df_refi_eligible.drop_duplicates(subset=['loan_id'])
         mean_savings_optimal_refi_refi_eligible = df_refi_eligible_aggregated['savings_optimal_refi_adj'].mean()
         mean_savings_realized_refi_refi_eligible = df_refi_eligible_aggregated['savings_realized_refi_adj'].mean()
         mean_savings_loss_refi_eligible = df_refi_eligible_aggregated['savings_loss_adj'].mean()
-        autofill_list.append([PARAMETER_TYPE, "Refi Eligible", annual_discount_rate, prob_move, marginal_tax_rate, mean_savings_optimal_refi_refi_eligible, mean_savings_realized_refi_refi_eligible, mean_savings_loss_refi_eligible])
+        autofill_list.append([PARAMETER_TYPE.lower(), "Refi Eligible", annual_discount_rate, prob_move, marginal_tax_rate, mean_savings_optimal_refi_refi_eligible, mean_savings_realized_refi_refi_eligible, mean_savings_loss_refi_eligible])
     
     with open(OUTDIR / 'table_savings.txt', 'w') as f:
-        f.write("<tab:table_savings>")
+        f.write("<tab:table_savings>\n")
         for row in autofill_list:
             f.write('\t'.join([str(x) for x in row]) + '\n')
     
