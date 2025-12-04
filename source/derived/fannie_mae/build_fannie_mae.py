@@ -8,6 +8,7 @@ from pathlib import Path
 import glob
 import gc
 import time
+from concurrent.futures import ProcessPoolExecutor
 
 from source.lib.helpers.process_text import clean_date, clean_text
 from source.lib.helpers.utils import get_quarters
@@ -28,39 +29,46 @@ def main():
     LOGDIR = Path('output/derived/fannie_mae/sflp_clean')
     START_DATE, END_DATE = CONFIG['SAMPLE_START'], CONFIG['SAMPLE_END']
     QUARTERS = get_quarters(START_DATE, END_DATE)
+    N_CORES = 32
     
     cw_state_county = pd.read_csv(INDIR_CW / 'cw_state_county.csv')
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
-    mortgage30us = pd.read_csv(INDIR_MORTGAGE_RATES / 'mortgage30us.csv', parse_dates=['date'])
     
-    for quarter in QUARTERS:
-        start_time = time.time()
-        
-        parquet_files = glob.glob(str(INDIR / f'{quarter}/*.parquet'))
-        n_chunks = len(parquet_files)
-        dfs = [pd.read_parquet(file) for file in parquet_files]
-        df = pd.concat(dfs, ignore_index=True)
-        print(f"Processing {quarter}: Size {df.shape[0]}")
-        
-        df_clean = clean_data(df, cw_period_date, quarter=quarter)
-        df_with_fips = add_fips(df_clean, cw_state_county)
-        df_finalized = finalize_data(df_with_bins)
-        
-        save_data(
-            df_finalized,
-            keys=['loan_id', 'period'],
-            out_file=OUTDIR / f'{quarter}.parquet',
-            log_file=LOGDIR / f'{quarter}.log',
-            sortbykey=True,
-            n_partitions=n_chunks
+    with ProcessPoolExecutor() as executor:
+        executor.map(
+            process_quarter,
+            QUARTERS,
+            [cw_state_county] * len(QUARTERS),
+            [cw_period_date] * len(QUARTERS),
+            [INDIR] * len(QUARTERS),
+            [OUTDIR] * len(QUARTERS),
+            [LOGDIR] * len(QUARTERS)
         )
-        
-        elapsed_time = time.time() - start_time
-        print(f"Completed {quarter} in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)")
-        
-        del df, df_clean, df_with_fips, df_with_mortgage_rates, df_with_indicators, df_with_bins, df_finalized
-        gc.collect()
-        
+
+def process_quarter(quarter, cw_state_county, cw_period_date, INDIR, OUTDIR, LOGDIR):
+    start_time = time.time()
+    parquet_files = glob.glob(str(INDIR / f'{quarter}/*.parquet'))
+    n_chunks = len(parquet_files)
+    dfs = [pd.read_parquet(file) for file in parquet_files]
+    df = pd.concat(dfs, ignore_index=True)
+    print(f"Processing {quarter}: Size {df.shape[0]}")
+    
+    df_clean = clean_data(df, cw_period_date, quarter=quarter)
+    df_with_fips = add_fips(df_clean, cw_state_county)
+    df_finalized = finalize_data(df_with_fips)
+    
+    save_data(
+        df_finalized,
+        keys=['loan_id', 'period'],
+        out_file=OUTDIR / f'{quarter}.parquet',
+        log_file=LOGDIR / f'{quarter}.log',
+        sortbykey=True,
+        n_partitions=n_chunks
+    )
+    
+    elapsed_time = time.time() - start_time
+    print(f"Completed {quarter} in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)")
+
 def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
     keep_vars = keep_vars or [
         "LOAN_ID", "ACT_PERIOD", "ORIG_RATE", "CURR_RATE", "ORIG_UPB", "CURRENT_UPB",

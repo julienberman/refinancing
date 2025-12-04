@@ -21,7 +21,18 @@ def main():
     MASK_FULL_SAMPLE = (df["exit_code"] == "prepaid") & (df['mortgage_type'] == 'fixed') & (df["time_to_exit"] >= 1) & (df["time_from_orig"] >= 0) 
     MASK_REFI_ELIGIBLE = MASK_FULL_SAMPLE & (df["credit_score_orig"] > 680) & (df["ltv"] < 90) & (df["dlq_status"] == 0)
 
-    df = pd.read_parquet(INDIR_SFLP / 'sflp_clean_sample.parquet')
+    df = pd.read_parquet(INDIR_SFLP / 'sflp_sample.parquet')
+    
+    #### BEGIN TEMPORARY: REMOVE REDUANDANT COLUMNS
+    df = df.select(columns=[
+        "loan_id", "period", "rate_orig", "upb_orig", "upb_curr", 
+        "ltv", "dti", "n_borrowers", "term", "period_orig", "period_first_pay", "time_from_orig", "time_to_maturity", 
+        "period_maturity", "time_to_exit", "period_exit", "exit_code", "upb_last", "credit_score_orig", 
+        "coborrower_credit_score_orig", "first_home_buyer", "mortgage_type", "purpose", "dlq_status", 
+        "state", "state_abbr", "fips_state", "msa", "zip"
+    ])
+    #### END TEMPORARY
+    
     mortgage30us = pd.read_csv(INDIR_FRED / 'mortgage30us.csv', parse_dates=['date'])
     cpi = pd.read_csv(INDIR_FRED / 'cpiauscl.csv', parse_dates=['date'])
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
