@@ -1,0 +1,10 @@
+File: output/derived/fred/cpiaucsl.csv
+
+MD5 hash: 4a20d11bac5eee09af7c84e234b6c646
+
+Keys: date 
+
+           type count   unique     mean     std     min      50%      max
+date  period[M]   945  945.000      nan     nan     nan      nan      nan
+cpi     float64   945      nan  123.421  88.824  21.480  109.500  324.368
+

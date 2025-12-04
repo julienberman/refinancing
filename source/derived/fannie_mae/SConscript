@@ -19,8 +19,7 @@ source = [
     '#source/derived/fannie_mae/build_fannie_mae.py',
     Glob('#datastore/raw/fannie_mae/data/**/*.parquet'),
     '#datastore/raw/crosswalks/data/cw_state_county.csv',
-    '#datastore/raw/crosswalks/data/cw_period_date.csv',
-    '#output/derived/mortgage_rates/mortgage30us.csv'
+    '#datastore/raw/crosswalks/data/cw_period_date.csv'
 ] + helpers
 
 target = []
@@ -28,6 +27,47 @@ for quarter in QUARTERS:
     n_partitions = len(list(glob.glob(str('datastore/raw/fannie_mae/data/' + quarter + '/*.parquet'))))
     target += [f'#datastore/output/derived/fannie_mae/sflp_clean/{quarter}/part.{i}.parquet' for i in range(n_partitions)]
     target += [f'#output/derived/fannie_mae/sflp_clean/{quarter}.log']
+
+env.Python(target, source)
+
+helpers = [
+    '#source/lib/config.json',
+    '#source/lib/save_data.py'
+]
+
+source = [
+    '#source/derived/fannie_mae/draw_sample.py',
+    Glob('#datastore/output/derived/fannie_mae/sflp_clean/**/*.parquet'),
+] + helpers
+
+target = [
+    '#datastore/output/derived/fannie_mae/sflp_sample.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample.log'
+]
+
+env.Python(target, source)
+
+helpers = [
+    '#source/lib/config.json',
+    '#source/lib/save_data.py'
+]
+
+source = [
+    '#source/derived/fannie_mae/process_fannie_mae.py',
+    '#datastore/output/derived/fannie_mae/sflp_sample.parquet',
+    '#output/derived/fred/mortgage30us.csv',
+    '#output/derived/fred/cpiauscl.csv',
+    '#datastore/raw/crosswalks/data/cw_period_date.csv',
+] + helpers
+
+target = []
+for parameter_type in ['high', 'medium', 'low']:
+    target.extend([
+        f'#datastore/output/derived/fannie_mae/sflp_sample_processed_{parameter_type}_full.parquet',
+        f'#datastore/output/derived/fannie_mae/sflp_sample_processed_{parameter_type}_full.log',
+        f'#datastore/output/derived/fannie_mae/sflp_sample_processed_{parameter_type}_refi_eligible.parquet',
+        f'#datastore/output/derived/fannie_mae/sflp_sample_processed_{parameter_type}_refi_eligible.log'
+    ])
 
 env.Python(target, source)
 

@@ -44,11 +44,6 @@ def main():
         
         df_clean = clean_data(df, cw_period_date, quarter=quarter)
         df_with_fips = add_fips(df_clean, cw_state_county)
-        df_with_mortgage_rates = add_mortgage_rate(df_with_fips, mortgage30us, cw_period_date)
-        df_with_indicators = add_event_indicators(df_with_mortgage_rates)
-        df_with_monthly_payment = compute_monthly_payment(df_with_indicators)
-        df_with_current_upb = compute_current_upb(df_with_monthly_payment)
-        df_with_bins = bin_rate_gap(df_with_current_upb)
         df_finalized = finalize_data(df_with_bins)
         
         save_data(
@@ -124,20 +119,21 @@ def clean_data(df, cw_period_date, keep_vars=None, quarter=None):
         )
         .assign(
             first_home_buyer = lambda x: x['first_home_buyer'].map({'Y': 1, 'N': 0}),
-            mortgage_type = lambda x: x['mortgage_type'].map({'FRM': 'fixed', 'ARM': 'adjustable'})
+            mortgage_type = lambda x: x['mortgage_type'].map({'FRM': 'fixed', 'ARM': 'adjustable'}),
+            dlq_status = lambda x: x['dlq_status'].astype(int)
         )
     )
     
     for date_col, period_col in date_cols.items():
         df_clean[period_col] = df_clean[date_col].map(cw_period_date['period'])
-    
-    df_clean = (
-        df_clean
-        .drop(columns=list(date_cols.keys()))
-        .assign(time_to_maturity = lambda x: x['period_maturity'] - x['period'])
-    )
+    df_clean = df_clean.drop(columns=list(date_cols.keys()))
     
     df_with_exit_codes = clean_exit_code(df_clean)
+    df_with_exit_codes['period_exit'] = df_with_exit_codes.groupby('loan_id')['period_exit'].transform(lambda x: x.ffill().bfill())
+    df_with_exit_codes['exit_code'] = df_with_exit_codes.groupby('loan_id')['exit_code'].transform(lambda x: x.ffill().bfill())
+    df_with_exit_codes['upb_last'] = df_with_exit_codes.groupby('loan_id')['upb_last'].transform(lambda x: x.ffill().bfill())
+    df_with_exit_codes['time_to_exit'] = df_with_exit_codes['period_exit'] - df_with_exit_codes['period']
+    df_with_exit_codes['time_to_maturity'] = df_with_exit_codes['period_maturity'] - df_with_exit_codes['period']
     
     return df_with_exit_codes
 
@@ -172,6 +168,16 @@ def clean_exit_code(df):
     df.loc[mask, 'exit_code'] = 'matured'
     return df
 
+def clean_purpose(df):
+    recode_map = {
+        'C': 'refi_cash',
+        'R': 'refi_no_cash',
+        'P': 'purchase',
+        'U': 'refi_unknown'
+    }
+    df['purpose'] = df['purpose'].map(recode_map)
+    return df
+
 def add_fips(df, cw_state_county):
     cw_state = (
         cw_state_county
@@ -186,66 +192,11 @@ def add_fips(df, cw_state_county):
     )
     return df_with_fips
 
-def add_mortgage_rate(df, mortgage30us, cw_period_date):
-    mortgage30us_period = (
-        mortgage30us
-        .merge(cw_period_date, left_on='date', right_index=True, how='left')
-        .drop(columns=['date'])
-        .rename(columns={'mortgage_rate': 'rate_mortgage30us'})
-    )
-    
-    df_with_mortgage_rates = (
-        df
-        .merge(mortgage30us_period, on='period', how='left')
-        .assign(rate_gap = lambda x: x['rate_curr'] - x['rate_mortgage30us'])
-    )
-    return df_with_mortgage_rates
-
-def add_event_indicators(df):
-    df['period_exit'] = df.groupby('loan_id')['period_exit'].transform(lambda x: x.ffill().bfill())
-    df['exit_code'] = df.groupby('loan_id')['exit_code'].transform(lambda x: x.ffill().bfill())
-    df['upb_last'] = df.groupby('loan_id')['upb_last'].transform(lambda x: x.ffill().bfill())
-    df['time_to_exit'] = df['period_exit'] - df['period']
-    df['exit_t1'] = np.where(df['time_to_exit'] == 1, 1, 0)
-    df['exit_t3'] = np.where(df['time_to_exit'] <= 3, 1, 0)
-    df['exit_t6'] = np.where(df['time_to_exit'] <= 6, 1, 0)
-    df['exit_t12'] = np.where(df['time_to_exit'] <= 12, 1, 0)
-    df['exit_t24'] = np.where(df['time_to_exit'] <= 24, 1, 0)
-    return df
-
-def compute_monthly_payment(df):
-    """Compute monthly mortgage payment"""
-    r = (df["rate_orig"] / 100) / 12
-    P = df["upb_orig"]
-    T = df["term"]
-    df["monthly_payment"] = P * (r * (1+r)**T) / ((1+r)**T - 1)
-    return df
-
-def compute_current_upb(df):
-    """Calculate current UPB at a given loan age"""
-    r = (df["rate_orig"] / 100) / 12
-    P = df["upb_orig"]
-    T = df["term"]
-    n = df["time_from_orig"]
-    df['upb_curr_imputed'] = P * ((1 + r)**T - (1 + r)**n) / ((1 + r)**T - 1)
-    
-    mask = (df['upb_curr'] == 0) & (df.groupby('loan_id').cumcount() < 6)
-    df.loc[mask, 'upb_curr'] = df.loc[mask, 'upb_curr_imputed']
-    df = df.reset_index(drop=True)
-    return df
-
-def bin_rate_gap(df, width=0.2):
-    bins = np.arange(-4.0, 4.0 + width, width)
-    bins = np.concatenate([[-np.inf], bins, [np.inf]])
-    df['rate_gap_bin'] = pd.cut(df['rate_gap'], bins=bins, right=False, include_lowest=True, labels=False)
-    return df
-
 def finalize_data(df):
     columns = [
-        "loan_id", "period", "rate_orig", "rate_curr", "rate_mortgage30us", "rate_gap", "rate_gap_bin", "upb_orig", "upb_curr", 
-        "upb_curr_imputed", "monthly_payment", "ltv", "dti", "n_borrowers", "term", "period_orig", "period_acq", "period_first_pay", "time_from_orig", "time_to_maturity", 
-        "period_maturity", "time_to_exit", "period_exit", "exit_code", "exit_t1", "exit_t3", "exit_t6", "exit_t12", 
-        "exit_t24", "upb_last", "credit_score_curr", "coborrower_credit_score_curr", "credit_score_orig", 
+        "loan_id", "period", "rate_orig", "upb_orig", "upb_curr", 
+        "ltv", "dti", "n_borrowers", "term", "period_orig", "period_first_pay", "time_from_orig", "time_to_maturity", 
+        "period_maturity", "time_to_exit", "period_exit", "exit_code", "upb_last", "credit_score_orig", 
         "coborrower_credit_score_orig", "first_home_buyer", "mortgage_type", "purpose", "dlq_status", 
         "state", "state_abbr", "fips_state", "msa", "zip"
     ]
