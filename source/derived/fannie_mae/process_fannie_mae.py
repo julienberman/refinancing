@@ -6,6 +6,7 @@ import json
 import glob
 import pyarrow
 from pathlib import Path
+from sklearn.linear_model import LinearRegression
 
 from source.lib.save_data import save_data
 
@@ -107,6 +108,12 @@ def impute_current_upb(df):
 
 def compute_rate_spread(df):
     df['rate_spread_orig'] = df['rate_orig'] - df['rate_mortgage30us_orig']
+    data_train = df.drop_duplicates(subset=['loan_id'])
+    X_train = data_train[['rate_mortgage30us', 'ltv', 'credit_score_orig', 'n_borrowers', 'dti']]
+    y_train = data_train['rate_spread_orig']
+    model = LinearRegression().fit(X_train, y_train)
+    
+    df['rate_spread_pred'] = model.predict(df[['rate_mortgage30us', 'ltv', 'credit_score_orig', 'n_borrowers', 'dti']])
     return df
 
 def compute_rate_gap(df, bin_size=0.2, min_bin = -4.0, max_bin = 4.0):
