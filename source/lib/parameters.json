@@ -5,10 +5,14 @@
         "MARGINAL_TAX_RATE": 0.28
     },
     "MEDIUM": {
-
+        "ANNUAL_DISCOUNT_RATE": 0.02,
+        "PROB_MOVE": 0.05,
+        "MARGINAL_TAX_RATE": 0.15
     },
     "LOW": {
-
+        "ANNUAL_DISCOUNT_RATE": 0.05,
+        "PROB_MOVE": 0.1,
+        "MARGINAL_TAX_RATE": 0.05
     }
-
 }
+

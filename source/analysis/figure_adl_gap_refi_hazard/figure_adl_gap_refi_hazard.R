@@ -19,38 +19,20 @@ main <- function() {
         data = df
     )
 
-    plot_refi_probability(
-        model,
-        xlabel = "Difference between Adjusted Rate Gap and ADL (2013) Optimal Refinancing Threshold",
-        ylabel = "Share of Loans Refinanced within 1 Month",
-        var = "adl_gap_bin",
-        save = TRUE,
-        out_file = "output/analysis/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.png"
-    )
-}
-
-plot_refi_probability <- function(
-  model,
-  xlabel = "Rate Gap",
-  ylabel = "Coefficient Estimate",
-  save = FALSE,
-  var = "adl_gap_bin",
-  out_file = "output/analysis/fannie_mae/refi_probability.png"
-) {
     results <- tidy(model, conf.int = TRUE) %>%
-        filter(grepl(var, term)) %>%
-        mutate(bin = as.numeric(sub(paste0(var, "::"), "", term)))
+        filter(grepl("adl_gap_adj_bin::", term)) %>%
+        mutate(bin = as.numeric(sub("adl_gap_adj_bin::", "", term))) %>%
+        filter(bin >= 9 & bin <= 30)
 
-    plot <- ggplot(results, aes(x = bin, y = estimate)) +
+    figure_1 <- ggplot(results, aes(x = bin, y = estimate)) +
         geom_point(size = 3, color = "#2C3E50") +
         geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.3, linewidth = 0.8, color = "#2C3E50") +
-        geom_hline(yintercept = 0, linetype = "dashed", color = "#E74C3C", linewidth = 0.7) +
-        geom_vline(xintercept = 31, linetype = "dotted", color = "#E74C3C", linewidth = 0.7) +
+        geom_hline(yintercept = 0, linetype = "solid", color = "black", linewidth = 0.7) +
+        geom_vline(xintercept = 14, linetype = "dotted", color = "#E74C3C", linewidth = 0.7) +
         scale_x_continuous(breaks = results$bin) +
         labs(
-            title = title,
-            x = xlabel,
-            y = ylabel
+            x = "Difference between Adjusted Rate Gap and ADL (2013) Optimal Refinancing Threshold",
+            y = "Share of Loans Refinanced within 1 Month"
         ) +
         theme_minimal(base_size = 12) +
         theme(
@@ -60,12 +42,7 @@ plot_refi_probability <- function(
             panel.grid.major.x = element_blank()
         )
 
-    if (save) {
-        dir.create(dirname(out_file), recursive = TRUE, showWarnings = FALSE)
-        ggsave(out_file, plot, width = 10, height = 6, dpi = 300)
-    }
-
-    return(plot)
+    ggsave(file.path(OUTDIR, "figure_adl_gap_refi_hazard.png"), figure_1, width = 8, height = 6, dpi = 300)
 }
 
 main()
