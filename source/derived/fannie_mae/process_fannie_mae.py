@@ -57,16 +57,16 @@ def main():
         save_data(
             df_adl_full,
             keys = ['loan_id', 'period'],
-            out_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_full.parquet',
-            log_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_full.log',
+            out_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE.lower()}.parquet',
+            log_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE.lower()}.log',
             sortbykey = True
         )
 
         save_data(
             df_adl_refi_eligible,
             keys = ['loan_id', 'period'],
-            out_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_refi_eligible.parquet',
-            log_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_refi_eligible.log',
+            out_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE.lower()}_refi_eligible.parquet',
+            log_file = OUTDIR / f'sflp_sample_processed_{PARAMETER_TYPE.lower()}_refi_eligible.log',
             sortbykey = True
         )
 

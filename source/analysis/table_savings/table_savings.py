@@ -7,7 +7,7 @@ def main():
         PARAMETER_LIST = json.load(f)
     
     INDIR = Path('datastore/output/derived/fannie_mae')
-    OUTDIR = Path('output/analysis/fannie_mae/table_savings')
+    OUTDIR = Path('output/analysis/table_savings')
     
     autofill_list = []
     for PARAMETER_TYPE, PARAMETERS in PARAMETER_LIST.items():

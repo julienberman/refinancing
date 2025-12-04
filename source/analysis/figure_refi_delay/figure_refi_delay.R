@@ -3,11 +3,17 @@ library(data.table)
 library(fixest)
 library(broom)
 library(ggplot2)
+library(arrow)
+
 
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "output/analysis/figure_refi_delay"
+    if (!dir.exists(OUTDIR)) {
+        dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    df <- fread(file.path(INDIR, "sflp_sample_processed_high.parquet"))
+    df <- read_parquet(file.path(INDIR, "sflp_sample_processed_high.parquet"))
 
     df_longest <- df %>%
         arrange(loan_id, period) %>%
@@ -21,10 +27,10 @@ main <- function() {
 
     figure_1 <- ggplot(df_longest, aes(x = longest_streak)) +
         geom_histogram(bins = 100, fill = "steelblue", color = "black") +
-        labs(x = "Longest Streak of Consecutive Days", y = "Count") +
+        labs(x = "Number of Consecutive Months not Refinancing when Optimal", y = "Number of Loans") +
         theme_minimal()
 
-    ggsave(figure_1, file.path(OUTDIR, "figure_refi_delay.png"), width = 8, height = 6)
+    ggsave(file.path(OUTDIR, "figure_refi_delay.png"), figure_1, width = 8, height = 6)
 }
 
 main()

@@ -3,15 +3,20 @@ library(data.table)
 library(fixest)
 library(broom)
 library(ggplot2)
+library(arrow)
 
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "output/analysis/figure_rate_gap_refi_hazard"
+    if (!dir.exists(OUTDIR)) {
+        dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    fannie_mae <- fread(file.path(INDIR, "sflp_sample_processed_high.parquet"))
+    df <- read_parquet(file.path(INDIR, "sflp_sample_processed_high.parquet"))
 
     model <- feols(
-        exit_t1 ~ 0 + i(rate_gap_bin),
-        data = fannie_mae
+        exit_t1 ~ 0 + i(rate_gap_adj_bin),
+        data = df
     )
 
     plot_refi_probability(
@@ -20,13 +25,12 @@ main <- function() {
         ylabel = "Coefficient Estimate",
         var = "rate_gap_bin",
         save = TRUE,
-        out_file = "output/analysis/fannie_mae/figure_rate_gap_refi_hazard.png"
+        out_file = "output/analysis/figure_rate_gap_refi_hazard/figure_rate_gap_refi_hazard.png"
     )
 }
 
 plot_refi_probability <- function(
   model,
-  title = "Effect of Rate Gap on Exit Probability",
   xlabel = "Rate Gap",
   ylabel = "Coefficient Estimate",
   save = FALSE,

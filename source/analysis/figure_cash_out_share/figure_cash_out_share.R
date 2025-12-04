@@ -4,11 +4,16 @@ library(fixest)
 library(broom)
 library(ggplot2)
 library(binsreg)
+library(arrow)
 
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "output/analysis/figure_cash_out_share"
+    if (!dir.exists(OUTDIR)) {
+        dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    df <- fread(file.path(INDIR, "sflp_sample_processed_high.parquet"))
+    df <- read_parquet(file.path(INDIR, "sflp_sample_processed_high.parquet"))
 
     df_agg <- df %>%
         group_by(loan_id) %>%
@@ -28,7 +33,7 @@ main <- function() {
         labs(x = "Safe mortgage rate", y = "Share of refinances with cash-out") +
         theme_minimal()
 
-    ggsave(figure_1, file.path(OUTDIR, "figure_cash_out_share.png"), width = 8, height = 6)
+    ggsave(file.path(OUTDIR, "figure_cash_out_share.png"), figure_1, width = 8, height = 6)
 }
 
 main()

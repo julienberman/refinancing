@@ -3,11 +3,16 @@ library(data.table)
 library(fixest)
 library(broom)
 library(ggplot2)
+library(arrow)
 
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "output/analysis/figure_rate_gap_at_exit"
+    if (!dir.exists(OUTDIR)) {
+        dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    df <- fread(file.path(INDIR, "sflp_sample_processed_high.parquet"))
+    df <- read_parquet(file.path(INDIR, "sflp_sample_processed_high.parquet"))
 
     df_at_exit <- df %>% filter(period == (period_exit - 1))
 

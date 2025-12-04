@@ -3,30 +3,34 @@ library(data.table)
 library(fixest)
 library(broom)
 library(ggplot2)
+library(arrow)
 
 main <- function() {
     INDIR <- "datastore/output/derived/fannie_mae"
+    OUTDIR <- "output/analysis/figure_adl_gap_refi_hazard"
+    if (!dir.exists(OUTDIR)) {
+        dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    fannie_mae <- fread(file.path(INDIR, "sflp_sample_processed_high.parquet"))
+    df <- read_parquet(file.path(INDIR, "sflp_sample_processed_high.parquet"))
 
     model <- feols(
-        exit_t1 ~ 0 + i(adl_gap_bin),
-        data = fannie_mae
+        exit_t1 ~ 0 + i(adl_gap_adj_bin),
+        data = df
     )
 
     plot_refi_probability(
         model,
-        xlabel = "Rate Gap - ADL Threshold",
-        ylabel = "Coefficient Estimate",
+        xlabel = "Difference between Adjusted Rate Gap and ADL (2013) Optimal Refinancing Threshold",
+        ylabel = "Share of Loans Refinanced within 1 Month",
         var = "adl_gap_bin",
         save = TRUE,
-        out_file = "output/analysis/fannie_mae/figure_adl_gap_refi_hazard.png"
+        out_file = "output/analysis/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.png"
     )
 }
 
 plot_refi_probability <- function(
   model,
-  title = "Effect of Rate Gap on Exit Probability",
   xlabel = "Rate Gap",
   ylabel = "Coefficient Estimate",
   save = FALSE,
