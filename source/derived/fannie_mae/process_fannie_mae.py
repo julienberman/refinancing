@@ -71,6 +71,7 @@ def main():
         )
 
 def add_event_indicators(df):
+    df = df.copy()
     df['exit_t1'] = np.where(df['time_to_exit'] == 1, 1, 0)
     df['exit_t3'] = np.where(df['time_to_exit'] <= 3, 1, 0)
     df['exit_t6'] = np.where(df['time_to_exit'] <= 6, 1, 0)
@@ -156,7 +157,7 @@ def compute_adl_threshold(df, mortgage30us, parameters={'ANNUAL_DISCOUNT_RATE': 
     )
     _monthly_mortgage_rate_vol = compute_mortgage_rate_vol(mortgage30us)
     _transaction_cost = 0.01 * df["upb_curr"] + 2000
-    _lambda = parameters['PROB_MOVE'] + ((_annual_payment / df["upb_curr"]) - (df["rate_orig"] / 100)) + df['inflation_annualized']
+    _lambda = parameters['PROB_MOVE'] + ((_annual_payment / df["upb_curr"]) - (df["rate_orig"] / 100)) + 0.03
     df['adl_threshold'] = 100 * np.sqrt((_monthly_mortgage_rate_vol * _transaction_cost) / (df["upb_curr"] * (1 - parameters['MARGINAL_TAX_RATE']))) * np.sqrt(2 * (parameters['ANNUAL_DISCOUNT_RATE'] + _lambda))
     return df
 
@@ -205,7 +206,7 @@ def compute_npv_never_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     """Compute NPV of no refinance scenario."""
     monthly_discount_rate = parameters['ANNUAL_DISCOUNT_RATE'] / 12
     
-    monthly_interest_rate_orig = (group['rate_orig'] / 100) / 12
+    monthly_interest_rate_orig = (group['rate_orig'].iloc[0] / 100) / 12
     term_orig = group['term'].iloc[0]
     upb_orig = group['upb_orig'].iloc[0]
     monthly_payment_orig = compute_annuity(interest_rate=monthly_interest_rate_orig, term=term_orig, principal=upb_orig)
@@ -217,7 +218,7 @@ def compute_npv_optimal_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     """Compute NPV of optimal refinance scenario."""
     monthly_discount_rate = parameters['ANNUAL_DISCOUNT_RATE'] / 12
     
-    monthly_interest_rate_orig = (group['rate_orig'] / 100) / 12
+    monthly_interest_rate_orig = (group['rate_orig'].iloc[0] / 100) / 12
     term_orig = group['term'].iloc[0]
     upb_orig = group['upb_orig'].iloc[0]
     monthly_payment_orig = compute_annuity(interest_rate=monthly_interest_rate_orig, term=term_orig, principal=upb_orig)
@@ -228,7 +229,7 @@ def compute_npv_optimal_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
         return npv
     
     refi_period = group.loc[mask, 'period'].min()
-    monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj']) / 100) / 12
+    monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj'].item()) / 100) / 12
     term_new = group.loc[group['period'] == refi_period, 'time_to_maturity'].item()
     upb_new = group.loc[group['period'] == refi_period, 'upb_curr'].item()
     monthly_payment_new = compute_annuity(interest_rate=monthly_interest_rate_new, term=term_new, principal=upb_new)
@@ -244,7 +245,7 @@ def compute_npv_realized_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     """Compute NPV of the realized refinance scenario."""
     monthly_discount_rate = parameters['ANNUAL_DISCOUNT_RATE'] / 12
     
-    monthly_interest_rate_orig = (group['rate_orig'] / 100) / 12
+    monthly_interest_rate_orig = (group['rate_orig'].iloc[0] / 100) / 12
     term_orig = group['term'].iloc[0]
     upb_orig = group['upb_orig'].iloc[0]
     monthly_payment_orig = compute_annuity(interest_rate=monthly_interest_rate_orig, term=term_orig, principal=upb_orig)
@@ -254,7 +255,7 @@ def compute_npv_realized_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
         return npv
     
     refi_period = group['period_exit'].iloc[0] - 1
-    monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj']) / 100) / 12
+    monthly_interest_rate_new = ((group.loc[group['period'] == refi_period, 'rate_mortgage30us_adj'].item()) / 100) / 12
     term_new = group.loc[group['period'] == refi_period, 'time_to_maturity'].item()
     upb_new = group.loc[group['period'] == refi_period, 'upb_curr'].item()
     monthly_payment_new = compute_annuity(interest_rate=monthly_interest_rate_new, term=term_new, principal=upb_new)
@@ -262,15 +263,13 @@ def compute_npv_realized_refi(group, parameters={'ANNUAL_DISCOUNT_RATE': 0.05}):
     npv_orig = monthly_payment_orig * ((1 - (1 + monthly_discount_rate)**(-(term_orig - term_new)) ) / monthly_discount_rate)
     npv_new = monthly_payment_new * ((1 - (1 + monthly_discount_rate)**(-term_new) ) / monthly_discount_rate) * ((1 + monthly_discount_rate)**(-(term_orig - term_new)))
     npv_transaction_cost = (0.01 * upb_new + 2000) * ((1 + monthly_discount_rate)**(-(term_orig - term_new)))
-    
     npv = npv_orig + npv_new + npv_transaction_cost
     return npv
 
 def compute_inflation_adjustments(df, cpi, cw_period_date, base_period='2025-01-01'):
-
     cpi_period = cpi.merge(cw_period_date, left_on='date', right_index=True, how='left')
     df['cpi_base'] = cpi_period.loc[cpi['date'] == base_period, 'cpi'].item()
-    df = df.merge(cpi_period.rename(columns={'cpi': 'cpi_at_orig', 'period': 'period_orig'}), on='period_orig', how='left')
+    df = df.merge(cpi_period.rename(columns={'cpi': 'cpi_at_orig', 'period': 'period_orig'}).drop(columns=['date']), on='period_orig', how='left')
     
     df['savings_optimal_refi_adj'] = df['savings_optimal_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
     df['savings_realized_refi_adj'] = df['savings_realized_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
