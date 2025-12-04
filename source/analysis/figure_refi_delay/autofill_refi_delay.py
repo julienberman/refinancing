@@ -19,7 +19,7 @@ def main():
     GenerateAutofillMacros(
         ["mean_refi_delay"],
         "{:,.0f}",
-        OUTDIR / "mean_refi_delay.tex"
+        OUTDIR / "autofill_mean_refi_delay.tex"
     )
 
 def longest_run_of_ones(x):

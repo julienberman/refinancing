@@ -1,49 +1,90 @@
 Import('*')
 
 target = [
-    '#output/analysis/top_gdp/sconscript.log',
-    '#output/analysis/top_gdp/top_gdp.txt'
+    '#output/analysis/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.png'
 ]
 
 source = [
-    '#source/analysis/top_gdp/top_gdp_table.R',
-    '#output/derived/wb_clean/gdp_education.csv'
+    '#source/analysis/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.R',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
 ]
 
 env.R(target, source)
 
 target = [
-    '#output/analysis/top_gdp/top_gdp.tex'
+    '#output/analysis/figure_cash_out_share/figure_cash_out_share.png'
 ]
 
 source = [
-    '#source/analysis/top_gdp/topgdp_value.py',
-    '#output/derived/wb_clean/gdp_education.csv'
+    '#source/analysis/figure_cash_out_share/figure_cash_out_share.R',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
+]
+
+env.R(target, source)
+
+target = [
+    '#output/analysis/figure_rate_gap_at_exit/figure_rate_gap_at_exit_adjusted.png',
+    '#output/analysis/figure_rate_gap_at_exit/figure_rate_gap_at_exit.png'
+]
+
+source = [
+    '#source/analysis/figure_rate_gap_at_exit/figure_rate_gap_at_exit.R',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
+]
+
+env.R(target, source)
+
+target = [
+    '#output/analysis/figure_rate_gap_refi_hazard/figure_rate_gap_refi_hazard.png'
+]
+
+source = [
+    '#source/analysis/figure_rate_gap_refi_hazard/figure_rate_gap_refi_hazard.R',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
+]
+
+env.R(target, source)
+
+target = [
+    '#output/analysis/figure_refi_delay/figure_refi_delay.png'
+]
+
+source = [
+    '#source/analysis/figure_refi_delay/figure_refi_delay.R',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
+]
+
+env.R(target, source)
+
+target = [
+    '#output/analysis/figure_refi_delay/autofill_mean_refi_delay.tex'
+]
+
+source = [
+    '#source/analysis/figure_refi_delay/autofill_refi_delay.py',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet'
 ]
 
 env.Python(target, source)
 
-target = [
-    '#output/analysis/plots/sconscript.log',
-    '#output/analysis/plots/gdp_educ.eps',
-    '#output/analysis/plots/gdp_educ.png'
+
+helpers = [
+    '#source/lib/parameters.json'
 ]
 
 source = [
-    '#source/analysis/plots/makeplot.m',
-    '#output/derived/wb_clean/gdp_education_logs.csv'
-]
-
-env.Matlab(target, source)
+    '#source/analysis/table_savings/table_savings.py',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_medium.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_low.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_high_refi_eligible.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_medium_refi_eligible.parquet',
+    '#datastore/output/derived/fannie_mae/sflp_sample_processed_low_refi_eligible.parquet'
+] + helpers
 
 target = [
-    '#output/analysis/plots/educ_gdp.eps',
-    '#output/analysis/plots/educ_gdp.png'
-]
-
-source = [
-    '#source/analysis/plots/makeplot.py',
-    '#output/derived/wb_clean/gdp_education_logs.csv'
+    '#output/analysis/table_savings/table_savings.txt'
 ]
 
 env.Python(target, source)
+

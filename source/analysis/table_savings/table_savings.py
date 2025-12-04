@@ -15,7 +15,7 @@ def main():
         prob_move = PARAMETERS['PROB_MOVE']
         marginal_tax_rate = PARAMETERS['MARGINAL_TAX_RATE']
         
-        df_full = pd.read_parquet(INDIR / f'sflp_sample_processed_{PARAMETER_TYPE}_full.parquet')
+        df_full = pd.read_parquet(INDIR / f'sflp_sample_processed_{PARAMETER_TYPE}.parquet')
         df_full_aggregated = df_full.drop_duplicates(subset=['loan_id'])
         mean_savings_optimal_refi_full = df_full_aggregated['savings_optimal_refi_adj'].mean()
         mean_savings_realized_refi_full = df_full_aggregated['savings_realized_refi_adj'].mean()
