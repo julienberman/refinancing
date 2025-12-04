@@ -34,7 +34,7 @@ def main():
     cw_state_county = pd.read_csv(INDIR_CW / 'cw_state_county.csv')
     cw_period_date = pd.read_csv(INDIR_CW / 'cw_period_date.csv', parse_dates=['date']).set_index('date')
     
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=N_CORES) as executor:
         executor.map(
             process_quarter,
             QUARTERS,

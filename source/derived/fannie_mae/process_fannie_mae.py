@@ -11,15 +11,13 @@ from sklearn.linear_model import LinearRegression
 from source.lib.save_data import save_data
 
 def main():
-    with open('source/derived/fannie_mae/parameters.json', 'r') as f:
+    with open('source/lib/parameters.json', 'r') as f:
         PARAMETER_LIST = json.load(f)
     
     INDIR_SFLP = Path('datastore/output/derived/fannie_mae')
     INDIR_FRED = Path('output/derived/fred')
     INDIR_CW = Path('datastore/raw/crosswalks/data')
     OUTDIR = Path('datastore/output/derived/fannie_mae')
-    MASK_FULL_SAMPLE = (df["exit_code"] == "prepaid") & (df['mortgage_type'] == 'fixed') & (df["time_to_exit"] >= 1) & (df["time_from_orig"] >= 0) 
-    MASK_REFI_ELIGIBLE = MASK_FULL_SAMPLE & (df["credit_score_orig"] > 680) & (df["ltv"] < 90) & (df["dlq_status"] == 0)
 
     df = pd.read_parquet(INDIR_SFLP / 'sflp_sample.parquet')
     
@@ -49,8 +47,11 @@ def main():
         df_adl = df_adl.groupby('loan_id', as_index=False).apply(compute_savings)
         df_adl = compute_inflation_adjustments(df_adl, cpi, cw_period_date)
         
-        df_adl_full = df_adl[MASK_FULL_SAMPLE]
-        df_adl_refi_eligible = df_adl[MASK_REFI_ELIGIBLE]
+        mask_full_sample = (df_adl["exit_code"] == "prepaid") & (df_adl['mortgage_type'] == 'fixed') & (df_adl["time_to_exit"] >= 1) & (df_adl["time_from_orig"] >= 0) 
+        mask_refi_eligible = mask_full_sample & (df_adl["credit_score_orig"] > 680) & (df_adl["ltv"] < 90) & (df_adl["dlq_status"] == 0)
+
+        df_adl_full = df_adl[mask_full_sample]
+        df_adl_refi_eligible = df_adl[mask_refi_eligible]
         
         save_data(
             df_adl_full,
