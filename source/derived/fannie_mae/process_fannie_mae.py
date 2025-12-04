@@ -270,7 +270,7 @@ def compute_inflation_adjustments(df, cpi, cw_period_date, base_period='2025-01-
 
     cpi_period = cpi.merge(cw_period_date, left_on='date', right_index=True, how='left')
     df['cpi_base'] = cpi_period.loc[cpi['date'] == base_period, 'cpi'].item()
-    df = df.merge(cpi_period.rename(columns={'cpi': 'cpi_at_orig'}), on='period_orig', how='left')
+    df = df.merge(cpi_period.rename(columns={'cpi': 'cpi_at_orig', 'period': 'period_orig'}), on='period_orig', how='left')
     
     df['savings_optimal_refi_adj'] = df['savings_optimal_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
     df['savings_realized_refi_adj'] = df['savings_realized_refi'] * (df['cpi_base'] / df['cpi_at_orig'])
