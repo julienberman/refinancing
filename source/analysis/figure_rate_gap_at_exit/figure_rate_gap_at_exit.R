@@ -28,7 +28,7 @@ main <- function() {
         labs(x = "Adjusted Rate Gap", y = "Number of Loans") +
         theme_minimal()
 
-    ggsave(file.path(OUTDIR, "figure_rate_gap_adj_at_exit.png"), figure_2, width = 8, height = 6, dpi = 300)
+    ggsave(file.path(OUTDIR, "figure_rate_gap_adj_at_exit.eps"), figure_2, width = 8, height = 6, dpi = 300)
 }
 
 main()

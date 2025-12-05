@@ -134,8 +134,8 @@ name "fig:rate_gap_refi_hazard"
 
 \lang english
 \begin_inset Graphics
-	filename ../../output/analysis/ibrd/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.png
-	scale 30
+	filename ../../output/analysis/figure_rate_gap_refi_hazard/figure_rate_gap_refi_hazard.eps
+	scale 50
 
 \end_inset
 

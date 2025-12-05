@@ -42,7 +42,7 @@ main <- function() {
             panel.grid.major.x = element_blank()
         )
 
-    ggsave(file.path(OUTDIR, "figure_rate_gap_refi_hazard.png"), figure_1, width = 8, height = 6, dpi = 300)
+    ggsave(file.path(OUTDIR, "figure_rate_gap_refi_hazard.eps"), figure_1, width = 8, height = 6, dpi = 300)
 }
 
 main()

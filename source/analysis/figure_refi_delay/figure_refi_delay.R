@@ -22,14 +22,15 @@ main <- function() {
         ) %>%
         group_by(loan_id, streak_id) %>%
         summarise(streak_len = sum(should_refi), .groups = "drop_last") %>%
-        summarise(longest_streak = max(streak_len), .groups = "drop")
+        summarise(longest_streak = max(streak_len), .groups = "drop") %>%
+        filter(longest_streak != 0)
 
     figure_1 <- ggplot(df_longest, aes(x = longest_streak)) +
         geom_histogram(bins = 100, fill = "steelblue", color = "black") +
         labs(x = "Number of Consecutive Months not Refinancing when Optimal", y = "Number of Loans") +
         theme_minimal()
 
-    ggsave(file.path(OUTDIR, "figure_refi_delay.png"), figure_1, width = 8, height = 6)
+    ggsave(file.path(OUTDIR, "figure_refi_delay.eps"), figure_1, width = 8, height = 6)
 }
 
 main()

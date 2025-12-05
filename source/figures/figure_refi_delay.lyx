@@ -104,11 +104,10 @@ status open
 \begin_layout Plain Layout
 
 \lang english
-Probability of Loan Prepayment —
-Difference Between Rate Gap and the ADL (2013) Optimal Refinancing Threshold
+Distribution of Refinance Delays 
 \begin_inset CommandInset label
 LatexCommand label
-name "fig:adl_gap_refi_hazard"
+name "fig:refi_delay"
 
 \end_inset
 
@@ -135,10 +134,8 @@ name "fig:adl_gap_refi_hazard"
 
 \lang english
 \begin_inset Graphics
-	filename ../../output/analysis/figure_adl_gap_refi_hazard/figure_adl_gap_refi_hazard.eps
-	lyxscale 50
-	scale 70
-	clip
+	filename ../../output/analysis/figure_refi_delay/figure_refi_delay.eps
+	scale 50
 
 \end_inset
 
@@ -163,11 +160,17 @@ name "fig:adl_gap_refi_hazard"
 Notes:
  
 \shape default
-The y-axis represents the estimated probability of loan prepayment within the next month.
- The x-axis measures the difference between the (adjusted) rate gap in a given period and the optimal refinancing threshold as formulated by ADL (2013) calculated for that period.
- This difference is then grouped into bins.
- The dotted red vertical line denotes the bin containing differences between 0% and 0.2%.
- The ADL threshold identifies the (adjusted) rate gap above which a household should refinance the loan.
+The x-axis measures the longest number of consecutive months in which it would have been optimal to refinance the loan,
+ but the loan was not refinanced.
+ It is considered to be 
+\begin_inset Quotes eld
+\end_inset
+
+optimal
+\begin_inset Quotes erd
+\end_inset
+
+ to refinance a loan if the (adjusted) rate gap exceeds the refinancing threshold as formulated by ADL (2013) calculated for a given period.
  The unadjusted rate gap measures the difference between the nominal interest rate on the loan at origination and the U.S.
  30-year fixed rate mortgage average in a given period.
  The adjusted rate gap adds the predicted spread for a given household.
